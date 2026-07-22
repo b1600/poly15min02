@@ -1,0 +1,91 @@
+{"ts": 1784725482.29, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "starting", "environment": "development", "db_path": "var/poly15m.db"}
+{"ts": 1784725482.291, "level": "INFO", "logger": "poly15m.db", "msg": "db_opened", "path": "var/poly15m.db"}
+{"ts": 1784725482.367, "level": "INFO", "logger": "poly15m.data.market_finder", "msg": "market_finder_series_resolved", "series_slug": "btc-up-or-down-15m", "series_id": "10192"}
+{"ts": 1784725482.395, "level": "INFO", "logger": "poly15m.data.market_finder", "msg": "market_rollover", "slug": "btc-updown-15m-1784725200", "condition_id": "0xe00f8cf1706a70a43acff2069821986682c6a6a20ffbd7eaa8e85bf91a95fd16", "open_ts": 1784725200.0, "close_ts": 1784726100.0}
+{"ts": 1784725483.271, "level": "INFO", "logger": "poly15m.data.clob_ws", "msg": "clob_ws_connected", "assets": ["2955941533058818156993001925816185070570322784824308243622263902096396462104", "88093096927297721880739207709715303623390949553521262022682846581722974935648"]}
+{"ts": 1784725483.301, "level": "INFO", "logger": "poly15m.data.window_tracker", "msg": "lifecycle_event", "condition_id": "0xe00f8cf1706a70a43acff2069821986682c6a6a20ffbd7eaa8e85bf91a95fd16", "event": "window_open"}
+{"ts": 1784725492.296, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 1.0}
+{"ts": 1784725503.299, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 2.0}
+{"ts": 1784725515.303, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 4.0}
+{"ts": 1784725529.306, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 8.0}
+{"ts": 1784725542.299, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784725547.309, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 16.0}
+{"ts": 1784725573.312, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784725602.302, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784725613.316, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784725653.319, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784725662.305, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784725693.322, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784725722.306, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784725733.33, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784725773.337, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784725782.308, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784725800.548, "level": "INFO", "logger": "poly15m.data.window_tracker", "msg": "lifecycle_event", "condition_id": "0xe00f8cf1706a70a43acff2069821986682c6a6a20ffbd7eaa8e85bf91a95fd16", "event": "t_minus_5m"}
+{"ts": 1784725813.339, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784725842.31, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784725853.341, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784725893.345, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784725902.312, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784725933.347, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784725962.314, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784725973.349, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784725980.684, "level": "INFO", "logger": "poly15m.data.window_tracker", "msg": "lifecycle_event", "condition_id": "0xe00f8cf1706a70a43acff2069821986682c6a6a20ffbd7eaa8e85bf91a95fd16", "event": "t_minus_2m"}
+{"ts": 1784726013.354, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726022.316, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784726053.357, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726070.757, "level": "INFO", "logger": "poly15m.data.window_tracker", "msg": "lifecycle_event", "condition_id": "0xe00f8cf1706a70a43acff2069821986682c6a6a20ffbd7eaa8e85bf91a95fd16", "event": "t_minus_30s"}
+{"ts": 1784726082.319, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784726093.36, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726100.784, "level": "INFO", "logger": "poly15m.data.window_tracker", "msg": "lifecycle_event", "condition_id": "0xe00f8cf1706a70a43acff2069821986682c6a6a20ffbd7eaa8e85bf91a95fd16", "event": "resolved"}
+{"ts": 1784726100.785, "level": "WARNING", "logger": "poly15m.paper_trade", "msg": "resolution_skipped_missing_price", "condition_id": "0xe00f8cf1706a70a43acff2069821986682c6a6a20ffbd7eaa8e85bf91a95fd16"}
+{"ts": 1784726101.772, "level": "INFO", "logger": "poly15m.data.market_finder", "msg": "market_rollover", "slug": "btc-updown-15m-1784726100", "condition_id": "0x72ea8c5c5872485d712ecc1a079a0ca395c8210469abdf22e8712c24c77c87b9", "open_ts": 1784726100.0, "close_ts": 1784727000.0}
+{"ts": 1784726101.787, "level": "INFO", "logger": "poly15m.data.window_tracker", "msg": "lifecycle_event", "condition_id": "0x72ea8c5c5872485d712ecc1a079a0ca395c8210469abdf22e8712c24c77c87b9", "event": "window_open"}
+{"ts": 1784726102.427, "level": "INFO", "logger": "poly15m.data.clob_ws", "msg": "clob_ws_connected", "assets": ["31566228999249300134025883057490806698829795656705628176631695837424503210904", "43122694310480523027898328626733418537477822372629848226066981844183477299331"]}
+{"ts": 1784726133.361, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726142.321, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784726173.368, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726202.323, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784726213.37, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726253.377, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726262.336, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784726293.393, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726322.344, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784726333.396, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726373.398, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726382.347, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784726413.401, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726442.349, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784726453.405, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726493.41, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726502.351, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784726533.416, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726562.356, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784726573.425, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726613.429, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726622.359, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784726653.433, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726682.36, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784726693.437, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726700.394, "level": "INFO", "logger": "poly15m.data.window_tracker", "msg": "lifecycle_event", "condition_id": "0x72ea8c5c5872485d712ecc1a079a0ca395c8210469abdf22e8712c24c77c87b9", "event": "t_minus_5m"}
+{"ts": 1784726733.44, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726742.363, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784726773.443, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726802.366, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784726813.445, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726853.449, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726862.368, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784726880.343, "level": "INFO", "logger": "poly15m.data.window_tracker", "msg": "lifecycle_event", "condition_id": "0x72ea8c5c5872485d712ecc1a079a0ca395c8210469abdf22e8712c24c77c87b9", "event": "t_minus_2m"}
+{"ts": 1784726893.453, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726922.37, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784726933.458, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726970.554, "level": "INFO", "logger": "poly15m.data.window_tracker", "msg": "lifecycle_event", "condition_id": "0x72ea8c5c5872485d712ecc1a079a0ca395c8210469abdf22e8712c24c77c87b9", "event": "t_minus_30s"}
+{"ts": 1784726973.461, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784726982.373, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784727000.617, "level": "INFO", "logger": "poly15m.data.window_tracker", "msg": "lifecycle_event", "condition_id": "0x72ea8c5c5872485d712ecc1a079a0ca395c8210469abdf22e8712c24c77c87b9", "event": "resolved"}
+{"ts": 1784727000.618, "level": "WARNING", "logger": "poly15m.paper_trade", "msg": "resolution_skipped_missing_price", "condition_id": "0x72ea8c5c5872485d712ecc1a079a0ca395c8210469abdf22e8712c24c77c87b9"}
+{"ts": 1784727009.184, "level": "INFO", "logger": "poly15m.data.market_finder", "msg": "market_rollover", "slug": "btc-updown-15m-1784727000", "condition_id": "0x8df1aab4d81783587ec4211d951feb4146c63de3fca4799a35bb35def47e064d", "open_ts": 1784727000.0, "close_ts": 1784727900.0}
+{"ts": 1784727009.63, "level": "INFO", "logger": "poly15m.data.window_tracker", "msg": "lifecycle_event", "condition_id": "0x8df1aab4d81783587ec4211d951feb4146c63de3fca4799a35bb35def47e064d", "event": "window_open"}
+{"ts": 1784727009.799, "level": "INFO", "logger": "poly15m.data.clob_ws", "msg": "clob_ws_connected", "assets": ["50227147731163093729157794904709616124361246457663329865451721472380184051304", "96168998469141052500245251031738548378086142132362870608433414002361455709818"]}
+{"ts": 1784727013.466, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
+{"ts": 1784727042.376, "level": "INFO", "logger": "poly15m.paper_trade", "msg": "pnl_status", "realized_pnl": 0.0, "fees_paid": 0.0, "open_positions": 0, "daily_pnl": 0.0, "kill_switch_active": false}
+{"ts": 1784727053.469, "level": "WARNING", "logger": "poly15m.data.binance_ws", "msg": "binance_disconnected", "error": "timed out during opening handshake", "retry_in": 30.0}
