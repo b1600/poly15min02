@@ -1,0 +1,1132 @@
+  combo 11/36: 19/429 windows (12670s elapsed)
+  combo 11/36: 34/429 windows (12685s elapsed)
+  combo 11/36: 49/429 windows (12702s elapsed)
+  combo 11/36: 54/429 windows (12718s elapsed)
+  combo 11/36: 63/429 windows (12734s elapsed)
+  combo 11/36: 78/429 windows (12749s elapsed)
+  combo 11/36: 96/429 windows (12765s elapsed)
+  combo 11/36: 114/429 windows (12781s elapsed)
+kill_switch_triggered
+  combo 11/36: 134/429 windows (12797s elapsed)
+  combo 11/36: 146/429 windows (12814s elapsed)
+  combo 11/36: 154/429 windows (12830s elapsed)
+  combo 11/36: 165/429 windows (12846s elapsed)
+  combo 11/36: 183/429 windows (12862s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 11/36: 198/429 windows (12877s elapsed)
+  combo 11/36: 217/429 windows (12893s elapsed)
+  combo 11/36: 236/429 windows (12910s elapsed)
+  combo 11/36: 244/429 windows (12926s elapsed)
+  combo 11/36: 252/429 windows (12941s elapsed)
+  combo 11/36: 266/429 windows (12957s elapsed)
+  combo 11/36: 284/429 windows (12972s elapsed)
+  combo 11/36: 304/429 windows (12989s elapsed)
+  combo 11/36: 323/429 windows (13005s elapsed)
+  combo 11/36: 332/429 windows (13026s elapsed)
+  combo 11/36: 340/429 windows (13041s elapsed)
+  combo 11/36: 347/429 windows (13057s elapsed)
+  combo 11/36: 361/429 windows (13073s elapsed)
+  combo 11/36: 383/429 windows (13089s elapsed)
+  combo 11/36: 399/429 windows (13105s elapsed)
+  combo 11/36: 405/429 windows (13129s elapsed)
+  combo 11/36: 410/429 windows (13519s elapsed)
+  combo 11/36: 424/429 windows (13534s elapsed)
+  combo 11/36: 429/429 windows (13541s elapsed)
+[11/36, 13655s elapsed] pnl=+55.03  fees=107.28  windows=429  kelly_fraction=0.15, min_edge_to_trade=0.01, uncertainty_buffer_base=0.05  kill_switch_trips=1
+  combo 12/36: 1/429 windows (13854s elapsed)
+  combo 12/36: 20/429 windows (13869s elapsed)
+  combo 12/36: 36/429 windows (13885s elapsed)
+  combo 12/36: 50/429 windows (13903s elapsed)
+  combo 12/36: 55/429 windows (13919s elapsed)
+  combo 12/36: 65/429 windows (13934s elapsed)
+  combo 12/36: 81/429 windows (13950s elapsed)
+  combo 12/36: 97/429 windows (13965s elapsed)
+  combo 12/36: 117/429 windows (13981s elapsed)
+kill_switch_triggered
+  combo 12/36: 136/429 windows (13996s elapsed)
+  combo 12/36: 147/429 windows (14013s elapsed)
+  combo 12/36: 155/429 windows (14029s elapsed)
+  combo 12/36: 166/429 windows (14044s elapsed)
+  combo 12/36: 184/429 windows (14061s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 12/36: 199/429 windows (14076s elapsed)
+  combo 12/36: 217/429 windows (14091s elapsed)
+  combo 12/36: 236/429 windows (14108s elapsed)
+  combo 12/36: 244/429 windows (14124s elapsed)
+  combo 12/36: 252/429 windows (14140s elapsed)
+  combo 12/36: 266/429 windows (14156s elapsed)
+  combo 12/36: 284/429 windows (14171s elapsed)
+  combo 12/36: 304/429 windows (14187s elapsed)
+  combo 12/36: 323/429 windows (14202s elapsed)
+  combo 12/36: 332/429 windows (14221s elapsed)
+kill_switch_triggered
+  combo 12/36: 341/429 windows (14238s elapsed)
+  combo 12/36: 349/429 windows (14254s elapsed)
+  combo 12/36: 367/429 windows (14269s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 12/36: 387/429 windows (14285s elapsed)
+kill_switch_triggered
+kill_switch_reset_new_backtest_day
+  combo 12/36: 405/429 windows (14322s elapsed)
+  combo 12/36: 408/429 windows (14710s elapsed)
+  combo 12/36: 422/429 windows (14725s elapsed)
+  combo 12/36: 429/429 windows (14734s elapsed)
+[12/36, 14852s elapsed] pnl=+13.16  fees=84.31  windows=429  kelly_fraction=0.15, min_edge_to_trade=0.01, uncertainty_buffer_base=0.08  kill_switch_trips=3
+  combo 13/36: 1/429 windows (15064s elapsed)
+  combo 13/36: 20/429 windows (15079s elapsed)
+  combo 13/36: 36/429 windows (15094s elapsed)
+  combo 13/36: 49/429 windows (15110s elapsed)
+  combo 13/36: 54/429 windows (15127s elapsed)
+  combo 13/36: 63/429 windows (15142s elapsed)
+  combo 13/36: 78/429 windows (15157s elapsed)
+  combo 13/36: 95/429 windows (15173s elapsed)
+  combo 13/36: 111/429 windows (15188s elapsed)
+  combo 13/36: 132/429 windows (15204s elapsed)
+  combo 13/36: 145/429 windows (15221s elapsed)
+  combo 13/36: 152/429 windows (15236s elapsed)
+  combo 13/36: 162/429 windows (15251s elapsed)
+  combo 13/36: 176/429 windows (15266s elapsed)
+  combo 13/36: 193/429 windows (15281s elapsed)
+  combo 13/36: 210/429 windows (15297s elapsed)
+  combo 13/36: 229/429 windows (15312s elapsed)
+  combo 13/36: 241/429 windows (15327s elapsed)
+  combo 13/36: 247/429 windows (15342s elapsed)
+  combo 13/36: 258/429 windows (15358s elapsed)
+  combo 13/36: 273/429 windows (15373s elapsed)
+  combo 13/36: 292/429 windows (15388s elapsed)
+  combo 13/36: 311/429 windows (15404s elapsed)
+kill_switch_triggered
+  combo 13/36: 330/429 windows (15419s elapsed)
+  combo 13/36: 333/429 windows (15435s elapsed)
+  combo 13/36: 341/429 windows (15450s elapsed)
+  combo 13/36: 348/429 windows (15466s elapsed)
+  combo 13/36: 364/429 windows (15481s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 13/36: 384/429 windows (15496s elapsed)
+  combo 13/36: 400/429 windows (15511s elapsed)
+  combo 13/36: 405/429 windows (15536s elapsed)
+  combo 13/36: 407/429 windows (15884s elapsed)
+  combo 13/36: 420/429 windows (15900s elapsed)
+  combo 13/36: 429/429 windows (15912s elapsed)
+[13/36, 16027s elapsed] pnl=+130.89  fees=114.83  windows=429  kelly_fraction=0.15, min_edge_to_trade=0.02, uncertainty_buffer_base=0.02  kill_switch_trips=1
+  combo 14/36: 1/429 windows (16261s elapsed)
+  combo 14/36: 21/429 windows (16277s elapsed)
+  combo 14/36: 37/429 windows (16292s elapsed)
+  combo 14/36: 50/429 windows (16310s elapsed)
+  combo 14/36: 55/429 windows (16326s elapsed)
+  combo 14/36: 65/429 windows (16342s elapsed)
+  combo 14/36: 81/429 windows (16357s elapsed)
+  combo 14/36: 98/429 windows (16373s elapsed)
+  combo 14/36: 119/429 windows (16389s elapsed)
+  combo 14/36: 137/429 windows (16405s elapsed)
+  combo 14/36: 147/429 windows (16421s elapsed)
+  combo 14/36: 155/429 windows (16436s elapsed)
+kill_switch_triggered
+  combo 14/36: 166/429 windows (16452s elapsed)
+  combo 14/36: 184/429 windows (16468s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 14/36: 199/429 windows (16483s elapsed)
+  combo 14/36: 218/429 windows (16498s elapsed)
+kill_switch_triggered
+  combo 14/36: 236/429 windows (16514s elapsed)
+  combo 14/36: 244/429 windows (16530s elapsed)
+  combo 14/36: 252/429 windows (16546s elapsed)
+  combo 14/36: 266/429 windows (16561s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 14/36: 284/429 windows (16577s elapsed)
+  combo 14/36: 304/429 windows (16593s elapsed)
+  combo 14/36: 323/429 windows (16608s elapsed)
+  combo 14/36: 332/429 windows (16629s elapsed)
+kill_switch_triggered
+  combo 14/36: 340/429 windows (16644s elapsed)
+  combo 14/36: 347/429 windows (16660s elapsed)
+  combo 14/36: 361/429 windows (16676s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 14/36: 382/429 windows (16691s elapsed)
+  combo 14/36: 396/429 windows (16706s elapsed)
+  combo 14/36: 405/429 windows (16737s elapsed)
+  combo 14/36: 409/429 windows (17143s elapsed)
+  combo 14/36: 423/429 windows (17158s elapsed)
+  combo 14/36: 429/429 windows (17166s elapsed)
+[14/36, 17289s elapsed] pnl=-12.87  fees=86.59  windows=429  kelly_fraction=0.15, min_edge_to_trade=0.02, uncertainty_buffer_base=0.05  kill_switch_trips=3
+  combo 15/36: 1/429 windows (17504s elapsed)
+  combo 15/36: 20/429 windows (17519s elapsed)
+kill_switch_triggered
+  combo 15/36: 34/429 windows (17534s elapsed)
+  combo 15/36: 49/429 windows (17550s elapsed)
+  combo 15/36: 54/429 windows (17566s elapsed)
+  combo 15/36: 63/429 windows (17582s elapsed)
+  combo 15/36: 78/429 windows (17597s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 15/36: 96/429 windows (17613s elapsed)
+  combo 15/36: 113/429 windows (17628s elapsed)
+kill_switch_triggered
+  combo 15/36: 134/429 windows (17644s elapsed)
+  combo 15/36: 146/429 windows (17661s elapsed)
+  combo 15/36: 154/429 windows (17677s elapsed)
+  combo 15/36: 164/429 windows (17692s elapsed)
+  combo 15/36: 180/429 windows (17707s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 15/36: 196/429 windows (17723s elapsed)
+  combo 15/36: 216/429 windows (17739s elapsed)
+  combo 15/36: 235/429 windows (17754s elapsed)
+  combo 15/36: 243/429 windows (17770s elapsed)
+  combo 15/36: 251/429 windows (17785s elapsed)
+  combo 15/36: 264/429 windows (17801s elapsed)
+  combo 15/36: 282/429 windows (17817s elapsed)
+  combo 15/36: 302/429 windows (17832s elapsed)
+kill_switch_triggered
+  combo 15/36: 320/429 windows (17848s elapsed)
+  combo 15/36: 332/429 windows (17873s elapsed)
+  combo 15/36: 341/429 windows (17890s elapsed)
+  combo 15/36: 349/429 windows (17906s elapsed)
+  combo 15/36: 367/429 windows (17921s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 15/36: 387/429 windows (17936s elapsed)
+kill_switch_triggered
+kill_switch_reset_new_backtest_day
+  combo 15/36: 405/429 windows (17970s elapsed)
+  combo 15/36: 408/429 windows (18349s elapsed)
+  combo 15/36: 423/429 windows (18365s elapsed)
+  combo 15/36: 429/429 windows (18373s elapsed)
+[15/36, 18489s elapsed] pnl=-11.37  fees=57.16  windows=429  kelly_fraction=0.15, min_edge_to_trade=0.02, uncertainty_buffer_base=0.08  kill_switch_trips=4
+  combo 16/36: 1/429 windows (18677s elapsed)
+  combo 16/36: 21/429 windows (18693s elapsed)
+  combo 16/36: 36/429 windows (18709s elapsed)
+  combo 16/36: 49/429 windows (18725s elapsed)
+  combo 16/36: 54/429 windows (18741s elapsed)
+  combo 16/36: 63/429 windows (18757s elapsed)
+  combo 16/36: 78/429 windows (18772s elapsed)
+  combo 16/36: 96/429 windows (18788s elapsed)
+  combo 16/36: 113/429 windows (18803s elapsed)
+kill_switch_triggered
+  combo 16/36: 134/429 windows (18820s elapsed)
+  combo 16/36: 146/429 windows (18836s elapsed)
+  combo 16/36: 154/429 windows (18852s elapsed)
+  combo 16/36: 165/429 windows (18868s elapsed)
+  combo 16/36: 183/429 windows (18884s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 16/36: 197/429 windows (18900s elapsed)
+  combo 16/36: 217/429 windows (18915s elapsed)
+  combo 16/36: 236/429 windows (18932s elapsed)
+  combo 16/36: 244/429 windows (18948s elapsed)
+  combo 16/36: 253/429 windows (18964s elapsed)
+  combo 16/36: 268/429 windows (18981s elapsed)
+  combo 16/36: 288/429 windows (18996s elapsed)
+  combo 16/36: 306/429 windows (19011s elapsed)
+  combo 16/36: 325/429 windows (19027s elapsed)
+  combo 16/36: 332/429 windows (19044s elapsed)
+kill_switch_triggered
+  combo 16/36: 341/429 windows (19062s elapsed)
+  combo 16/36: 349/429 windows (19078s elapsed)
+  combo 16/36: 367/429 windows (19093s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 16/36: 387/429 windows (19109s elapsed)
+  combo 16/36: 405/429 windows (19144s elapsed)
+  combo 16/36: 407/429 windows (19501s elapsed)
+  combo 16/36: 420/429 windows (19517s elapsed)
+  combo 16/36: 429/429 windows (19530s elapsed)
+[16/36, 19655s elapsed] pnl=+99.03  fees=93.27  windows=429  kelly_fraction=0.15, min_edge_to_trade=0.05, uncertainty_buffer_base=0.02  kill_switch_trips=2
+  combo 17/36: 1/429 windows (19863s elapsed)
+  combo 17/36: 20/429 windows (19879s elapsed)
+  combo 17/36: 35/429 windows (19894s elapsed)
+  combo 17/36: 49/429 windows (19909s elapsed)
+  combo 17/36: 54/429 windows (19925s elapsed)
+  combo 17/36: 63/429 windows (19941s elapsed)
+  combo 17/36: 78/429 windows (19956s elapsed)
+  combo 17/36: 96/429 windows (19972s elapsed)
+kill_switch_triggered
+  combo 17/36: 114/429 windows (19988s elapsed)
+  combo 17/36: 134/429 windows (20003s elapsed)
+  combo 17/36: 146/429 windows (20020s elapsed)
+  combo 17/36: 154/429 windows (20036s elapsed)
+  combo 17/36: 165/429 windows (20051s elapsed)
+  combo 17/36: 183/429 windows (20067s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 17/36: 198/429 windows (20083s elapsed)
+  combo 17/36: 217/429 windows (20098s elapsed)
+  combo 17/36: 235/429 windows (20113s elapsed)
+  combo 17/36: 243/429 windows (20129s elapsed)
+  combo 17/36: 251/429 windows (20145s elapsed)
+  combo 17/36: 264/429 windows (20161s elapsed)
+  combo 17/36: 281/429 windows (20176s elapsed)
+  combo 17/36: 301/429 windows (20191s elapsed)
+kill_switch_triggered
+  combo 17/36: 319/429 windows (20207s elapsed)
+  combo 17/36: 332/429 windows (20232s elapsed)
+  combo 17/36: 341/429 windows (20249s elapsed)
+  combo 17/36: 349/429 windows (20265s elapsed)
+  combo 17/36: 366/429 windows (20280s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 17/36: 386/429 windows (20296s elapsed)
+kill_switch_triggered
+  combo 17/36: 404/429 windows (20311s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 17/36: 405/429 windows (20334s elapsed)
+  combo 17/36: 408/429 windows (20722s elapsed)
+  combo 17/36: 423/429 windows (20737s elapsed)
+  combo 17/36: 429/429 windows (20745s elapsed)
+[17/36, 20854s elapsed] pnl=+26.63  fees=71.81  windows=429  kelly_fraction=0.15, min_edge_to_trade=0.05, uncertainty_buffer_base=0.05  kill_switch_trips=3
+  combo 18/36: 1/429 windows (21061s elapsed)
+  combo 18/36: 20/429 windows (21076s elapsed)
+  combo 18/36: 36/429 windows (21091s elapsed)
+  combo 18/36: 49/429 windows (21106s elapsed)
+  combo 18/36: 54/429 windows (21122s elapsed)
+  combo 18/36: 63/429 windows (21138s elapsed)
+  combo 18/36: 78/429 windows (21153s elapsed)
+  combo 18/36: 96/429 windows (21169s elapsed)
+  combo 18/36: 114/429 windows (21184s elapsed)
+kill_switch_triggered
+  combo 18/36: 134/429 windows (21200s elapsed)
+  combo 18/36: 146/429 windows (21216s elapsed)
+  combo 18/36: 154/429 windows (21233s elapsed)
+  combo 18/36: 165/429 windows (21249s elapsed)
+  combo 18/36: 183/429 windows (21264s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 18/36: 198/429 windows (21280s elapsed)
+  combo 18/36: 217/429 windows (21296s elapsed)
+  combo 18/36: 236/429 windows (21313s elapsed)
+  combo 18/36: 244/429 windows (21329s elapsed)
+  combo 18/36: 252/429 windows (21344s elapsed)
+  combo 18/36: 266/429 windows (21360s elapsed)
+  combo 18/36: 284/429 windows (21375s elapsed)
+kill_switch_triggered
+  combo 18/36: 304/429 windows (21391s elapsed)
+  combo 18/36: 323/429 windows (21407s elapsed)
+  combo 18/36: 332/429 windows (21427s elapsed)
+  combo 18/36: 341/429 windows (21443s elapsed)
+  combo 18/36: 349/429 windows (21459s elapsed)
+  combo 18/36: 367/429 windows (21475s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 18/36: 387/429 windows (21490s elapsed)
+  combo 18/36: 405/429 windows (21526s elapsed)
+  combo 18/36: 409/429 windows (21866s elapsed)
+  combo 18/36: 424/429 windows (21882s elapsed)
+  combo 18/36: 429/429 windows (21889s elapsed)
+[18/36, 22013s elapsed] pnl=+95.06  fees=58.77  windows=429  kelly_fraction=0.15, min_edge_to_trade=0.05, uncertainty_buffer_base=0.08  kill_switch_trips=2
+  combo 19/36: 1/429 windows (22230s elapsed)
+  combo 19/36: 19/429 windows (22245s elapsed)
+kill_switch_triggered
+  combo 19/36: 35/429 windows (22261s elapsed)
+  combo 19/36: 49/429 windows (22277s elapsed)
+  combo 19/36: 54/429 windows (22293s elapsed)
+  combo 19/36: 63/429 windows (22309s elapsed)
+  combo 19/36: 79/429 windows (22324s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 19/36: 96/429 windows (22340s elapsed)
+  combo 19/36: 114/429 windows (22355s elapsed)
+  combo 19/36: 134/429 windows (22370s elapsed)
+  combo 19/36: 146/429 windows (22387s elapsed)
+  combo 19/36: 154/429 windows (22403s elapsed)
+  combo 19/36: 165/429 windows (22419s elapsed)
+  combo 19/36: 183/429 windows (22435s elapsed)
+  combo 19/36: 198/429 windows (22450s elapsed)
+  combo 19/36: 218/429 windows (22466s elapsed)
+  combo 19/36: 236/429 windows (22481s elapsed)
+  combo 19/36: 244/429 windows (22498s elapsed)
+  combo 19/36: 253/429 windows (22515s elapsed)
+  combo 19/36: 267/429 windows (22530s elapsed)
+  combo 19/36: 285/429 windows (22545s elapsed)
+  combo 19/36: 304/429 windows (22560s elapsed)
+kill_switch_triggered
+  combo 19/36: 323/429 windows (22576s elapsed)
+  combo 19/36: 332/429 windows (22599s elapsed)
+  combo 19/36: 341/429 windows (22616s elapsed)
+  combo 19/36: 349/429 windows (22632s elapsed)
+  combo 19/36: 367/429 windows (22647s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 19/36: 387/429 windows (22662s elapsed)
+  combo 19/36: 405/429 windows (22695s elapsed)
+  combo 19/36: 408/429 windows (23064s elapsed)
+  combo 19/36: 423/429 windows (23079s elapsed)
+  combo 19/36: 429/429 windows (23087s elapsed)
+[19/36, 23197s elapsed] pnl=-8.66  fees=91.55  windows=429  kelly_fraction=0.2, min_edge_to_trade=0.01, uncertainty_buffer_base=0.02  kill_switch_trips=2
+  combo 20/36: 1/429 windows (23395s elapsed)
+  combo 20/36: 20/429 windows (23410s elapsed)
+  combo 20/36: 35/429 windows (23425s elapsed)
+  combo 20/36: 49/429 windows (23441s elapsed)
+  combo 20/36: 54/429 windows (23457s elapsed)
+  combo 20/36: 63/429 windows (23473s elapsed)
+  combo 20/36: 78/429 windows (23488s elapsed)
+  combo 20/36: 96/429 windows (23504s elapsed)
+  combo 20/36: 113/429 windows (23519s elapsed)
+kill_switch_triggered
+  combo 20/36: 134/429 windows (23535s elapsed)
+  combo 20/36: 146/429 windows (23551s elapsed)
+  combo 20/36: 154/429 windows (23568s elapsed)
+  combo 20/36: 165/429 windows (23584s elapsed)
+  combo 20/36: 183/429 windows (23600s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 20/36: 197/429 windows (23615s elapsed)
+  combo 20/36: 217/429 windows (23631s elapsed)
+  combo 20/36: 236/429 windows (23648s elapsed)
+  combo 20/36: 244/429 windows (23663s elapsed)
+  combo 20/36: 253/429 windows (23680s elapsed)
+  combo 20/36: 266/429 windows (23695s elapsed)
+  combo 20/36: 284/429 windows (23711s elapsed)
+  combo 20/36: 304/429 windows (23727s elapsed)
+  combo 20/36: 323/429 windows (23743s elapsed)
+  combo 20/36: 332/429 windows (23765s elapsed)
+  combo 20/36: 341/429 windows (23782s elapsed)
+  combo 20/36: 349/429 windows (23798s elapsed)
+  combo 20/36: 367/429 windows (23813s elapsed)
+  combo 20/36: 387/429 windows (23829s elapsed)
+  combo 20/36: 405/429 windows (23865s elapsed)
+  combo 20/36: 408/429 windows (24201s elapsed)
+  combo 20/36: 422/429 windows (24216s elapsed)
+  combo 20/36: 429/429 windows (24226s elapsed)
+[20/36, 24348s elapsed] pnl=+56.70  fees=107.25  windows=429  kelly_fraction=0.2, min_edge_to_trade=0.01, uncertainty_buffer_base=0.05  kill_switch_trips=1
+  combo 21/36: 1/429 windows (24562s elapsed)
+  combo 21/36: 20/429 windows (24578s elapsed)
+  combo 21/36: 34/429 windows (24593s elapsed)
+  combo 21/36: 49/429 windows (24610s elapsed)
+  combo 21/36: 54/429 windows (24626s elapsed)
+  combo 21/36: 63/429 windows (24642s elapsed)
+  combo 21/36: 78/429 windows (24657s elapsed)
+  combo 21/36: 96/429 windows (24673s elapsed)
+  combo 21/36: 114/429 windows (24688s elapsed)
+kill_switch_triggered
+  combo 21/36: 134/429 windows (24704s elapsed)
+  combo 21/36: 146/429 windows (24721s elapsed)
+  combo 21/36: 154/429 windows (24737s elapsed)
+  combo 21/36: 165/429 windows (24753s elapsed)
+  combo 21/36: 183/429 windows (24768s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 21/36: 198/429 windows (24784s elapsed)
+  combo 21/36: 218/429 windows (24799s elapsed)
+  combo 21/36: 236/429 windows (24815s elapsed)
+  combo 21/36: 244/429 windows (24832s elapsed)
+  combo 21/36: 253/429 windows (24848s elapsed)
+  combo 21/36: 268/429 windows (24864s elapsed)
+  combo 21/36: 288/429 windows (24880s elapsed)
+  combo 21/36: 305/429 windows (24895s elapsed)
+  combo 21/36: 325/429 windows (24911s elapsed)
+  combo 21/36: 332/429 windows (24930s elapsed)
+kill_switch_triggered
+  combo 21/36: 341/429 windows (24947s elapsed)
+  combo 21/36: 349/429 windows (24963s elapsed)
+  combo 21/36: 367/429 windows (24978s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 21/36: 387/429 windows (24994s elapsed)
+kill_switch_triggered
+kill_switch_reset_new_backtest_day
+  combo 21/36: 405/429 windows (25028s elapsed)
+  combo 21/36: 408/429 windows (25371s elapsed)
+  combo 21/36: 423/429 windows (25387s elapsed)
+  combo 21/36: 429/429 windows (25395s elapsed)
+[21/36, 25512s elapsed] pnl=+13.16  fees=84.31  windows=429  kelly_fraction=0.2, min_edge_to_trade=0.01, uncertainty_buffer_base=0.08  kill_switch_trips=3
+  combo 22/36: 1/429 windows (25737s elapsed)
+  combo 22/36: 20/429 windows (25752s elapsed)
+  combo 22/36: 35/429 windows (25768s elapsed)
+  combo 22/36: 49/429 windows (25784s elapsed)
+  combo 22/36: 54/429 windows (25800s elapsed)
+  combo 22/36: 63/429 windows (25816s elapsed)
+  combo 22/36: 78/429 windows (25831s elapsed)
+  combo 22/36: 95/429 windows (25847s elapsed)
+  combo 22/36: 112/429 windows (25862s elapsed)
+  combo 22/36: 133/429 windows (25877s elapsed)
+  combo 22/36: 145/429 windows (25893s elapsed)
+  combo 22/36: 152/429 windows (25909s elapsed)
+  combo 22/36: 162/429 windows (25924s elapsed)
+  combo 22/36: 176/429 windows (25940s elapsed)
+  combo 22/36: 194/429 windows (25955s elapsed)
+  combo 22/36: 211/429 windows (25971s elapsed)
+  combo 22/36: 230/429 windows (25986s elapsed)
+  combo 22/36: 242/429 windows (26004s elapsed)
+  combo 22/36: 249/429 windows (26020s elapsed)
+  combo 22/36: 261/429 windows (26036s elapsed)
+  combo 22/36: 278/429 windows (26051s elapsed)
+  combo 22/36: 297/429 windows (26066s elapsed)
+  combo 22/36: 315/429 windows (26081s elapsed)
+kill_switch_triggered
+  combo 22/36: 332/429 windows (26112s elapsed)
+  combo 22/36: 341/429 windows (26129s elapsed)
+  combo 22/36: 349/429 windows (26145s elapsed)
+  combo 22/36: 367/429 windows (26161s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 22/36: 387/429 windows (26176s elapsed)
+  combo 22/36: 405/429 windows (26214s elapsed)
+  combo 22/36: 408/429 windows (26593s elapsed)
+  combo 22/36: 418/429 windows (26608s elapsed)
+  combo 22/36: 429/429 windows (26623s elapsed)
+[22/36, 26745s elapsed] pnl=+130.89  fees=114.83  windows=429  kelly_fraction=0.2, min_edge_to_trade=0.02, uncertainty_buffer_base=0.02  kill_switch_trips=1
+  combo 23/36: 1/429 windows (26962s elapsed)
+  combo 23/36: 20/429 windows (26977s elapsed)
+  combo 23/36: 34/429 windows (26992s elapsed)
+  combo 23/36: 49/429 windows (27009s elapsed)
+  combo 23/36: 54/429 windows (27025s elapsed)
+  combo 23/36: 63/429 windows (27041s elapsed)
+  combo 23/36: 78/429 windows (27056s elapsed)
+  combo 23/36: 96/429 windows (27072s elapsed)
+  combo 23/36: 114/429 windows (27088s elapsed)
+  combo 23/36: 134/429 windows (27104s elapsed)
+  combo 23/36: 146/429 windows (27121s elapsed)
+  combo 23/36: 154/429 windows (27137s elapsed)
+kill_switch_triggered
+  combo 23/36: 165/429 windows (27153s elapsed)
+  combo 23/36: 183/429 windows (27169s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 23/36: 198/429 windows (27185s elapsed)
+  combo 23/36: 218/429 windows (27200s elapsed)
+kill_switch_triggered
+  combo 23/36: 236/429 windows (27217s elapsed)
+  combo 23/36: 244/429 windows (27234s elapsed)
+  combo 23/36: 253/429 windows (27250s elapsed)
+  combo 23/36: 267/429 windows (27265s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 23/36: 285/429 windows (27280s elapsed)
+  combo 23/36: 304/429 windows (27296s elapsed)
+  combo 23/36: 323/429 windows (27312s elapsed)
+  combo 23/36: 332/429 windows (27334s elapsed)
+kill_switch_triggered
+  combo 23/36: 341/429 windows (27351s elapsed)
+  combo 23/36: 349/429 windows (27367s elapsed)
+  combo 23/36: 368/429 windows (27383s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 23/36: 387/429 windows (27398s elapsed)
+  combo 23/36: 405/429 windows (27433s elapsed)
+  combo 23/36: 409/429 windows (27832s elapsed)
+  combo 23/36: 422/429 windows (27848s elapsed)
+  combo 23/36: 429/429 windows (27857s elapsed)
+[23/36, 27982s elapsed] pnl=-12.87  fees=86.59  windows=429  kelly_fraction=0.2, min_edge_to_trade=0.02, uncertainty_buffer_base=0.05  kill_switch_trips=3
+  combo 24/36: 1/429 windows (28184s elapsed)
+  combo 24/36: 20/429 windows (28199s elapsed)
+kill_switch_triggered
+  combo 24/36: 35/429 windows (28215s elapsed)
+  combo 24/36: 49/429 windows (28231s elapsed)
+  combo 24/36: 54/429 windows (28248s elapsed)
+  combo 24/36: 63/429 windows (28263s elapsed)
+  combo 24/36: 78/429 windows (28278s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 24/36: 96/429 windows (28294s elapsed)
+  combo 24/36: 113/429 windows (28310s elapsed)
+kill_switch_triggered
+  combo 24/36: 134/429 windows (28325s elapsed)
+  combo 24/36: 146/429 windows (28342s elapsed)
+  combo 24/36: 154/429 windows (28358s elapsed)
+  combo 24/36: 165/429 windows (28374s elapsed)
+  combo 24/36: 183/429 windows (28390s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 24/36: 198/429 windows (28405s elapsed)
+  combo 24/36: 218/429 windows (28420s elapsed)
+  combo 24/36: 236/429 windows (28437s elapsed)
+  combo 24/36: 244/429 windows (28453s elapsed)
+  combo 24/36: 253/429 windows (28470s elapsed)
+  combo 24/36: 267/429 windows (28485s elapsed)
+  combo 24/36: 284/429 windows (28500s elapsed)
+  combo 24/36: 304/429 windows (28516s elapsed)
+kill_switch_triggered
+  combo 24/36: 323/429 windows (28532s elapsed)
+  combo 24/36: 332/429 windows (28555s elapsed)
+  combo 24/36: 341/429 windows (28572s elapsed)
+  combo 24/36: 349/429 windows (28588s elapsed)
+  combo 24/36: 367/429 windows (28603s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 24/36: 387/429 windows (28618s elapsed)
+kill_switch_triggered
+kill_switch_reset_new_backtest_day
+  combo 24/36: 405/429 windows (28655s elapsed)
+  combo 24/36: 408/429 windows (29016s elapsed)
+  combo 24/36: 422/429 windows (29033s elapsed)
+  combo 24/36: 429/429 windows (29042s elapsed)
+[24/36, 29153s elapsed] pnl=-11.37  fees=57.16  windows=429  kelly_fraction=0.2, min_edge_to_trade=0.02, uncertainty_buffer_base=0.08  kill_switch_trips=4
+  combo 25/36: 1/429 windows (29390s elapsed)
+  combo 25/36: 21/429 windows (29406s elapsed)
+  combo 25/36: 37/429 windows (29421s elapsed)
+  combo 25/36: 50/429 windows (29438s elapsed)
+  combo 25/36: 55/429 windows (29454s elapsed)
+  combo 25/36: 65/429 windows (29469s elapsed)
+  combo 25/36: 81/429 windows (29485s elapsed)
+  combo 25/36: 97/429 windows (29500s elapsed)
+  combo 25/36: 116/429 windows (29515s elapsed)
+kill_switch_triggered
+  combo 25/36: 135/429 windows (29530s elapsed)
+  combo 25/36: 146/429 windows (29546s elapsed)
+  combo 25/36: 154/429 windows (29562s elapsed)
+  combo 25/36: 165/429 windows (29578s elapsed)
+  combo 25/36: 183/429 windows (29594s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 25/36: 197/429 windows (29609s elapsed)
+  combo 25/36: 217/429 windows (29625s elapsed)
+  combo 25/36: 236/429 windows (29642s elapsed)
+  combo 25/36: 244/429 windows (29658s elapsed)
+  combo 25/36: 253/429 windows (29675s elapsed)
+  combo 25/36: 266/429 windows (29690s elapsed)
+  combo 25/36: 284/429 windows (29706s elapsed)
+  combo 25/36: 304/429 windows (29721s elapsed)
+  combo 25/36: 323/429 windows (29737s elapsed)
+  combo 25/36: 332/429 windows (29761s elapsed)
+kill_switch_triggered
+  combo 25/36: 341/429 windows (29778s elapsed)
+  combo 25/36: 349/429 windows (29794s elapsed)
+  combo 25/36: 365/429 windows (29810s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 25/36: 386/429 windows (29825s elapsed)
+  combo 25/36: 403/429 windows (29841s elapsed)
+  combo 25/36: 405/429 windows (29865s elapsed)
+  combo 25/36: 409/429 windows (30235s elapsed)
+  combo 25/36: 423/429 windows (30251s elapsed)
+  combo 25/36: 429/429 windows (30259s elapsed)
+[25/36, 30385s elapsed] pnl=+99.03  fees=93.27  windows=429  kelly_fraction=0.2, min_edge_to_trade=0.05, uncertainty_buffer_base=0.02  kill_switch_trips=2
+  combo 26/36: 1/429 windows (30598s elapsed)
+  combo 26/36: 19/429 windows (30614s elapsed)
+  combo 26/36: 34/429 windows (30629s elapsed)
+  combo 26/36: 49/429 windows (30645s elapsed)
+  combo 26/36: 54/429 windows (30662s elapsed)
+  combo 26/36: 63/429 windows (30677s elapsed)
+  combo 26/36: 78/429 windows (30693s elapsed)
+  combo 26/36: 95/429 windows (30708s elapsed)
+kill_switch_triggered
+  combo 26/36: 112/429 windows (30724s elapsed)
+  combo 26/36: 132/429 windows (30739s elapsed)
+  combo 26/36: 145/429 windows (30756s elapsed)
+  combo 26/36: 152/429 windows (30771s elapsed)
+  combo 26/36: 162/429 windows (30786s elapsed)
+  combo 26/36: 176/429 windows (30802s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 26/36: 193/429 windows (30817s elapsed)
+  combo 26/36: 210/429 windows (30832s elapsed)
+  combo 26/36: 229/429 windows (30847s elapsed)
+  combo 26/36: 241/429 windows (30862s elapsed)
+  combo 26/36: 247/429 windows (30878s elapsed)
+  combo 26/36: 257/429 windows (30893s elapsed)
+  combo 26/36: 272/429 windows (30908s elapsed)
+  combo 26/36: 291/429 windows (30923s elapsed)
+  combo 26/36: 310/429 windows (30939s elapsed)
+kill_switch_triggered
+  combo 26/36: 330/429 windows (30954s elapsed)
+  combo 26/36: 332/429 windows (30971s elapsed)
+  combo 26/36: 341/429 windows (30988s elapsed)
+  combo 26/36: 349/429 windows (31005s elapsed)
+  combo 26/36: 367/429 windows (31020s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 26/36: 387/429 windows (31035s elapsed)
+kill_switch_triggered
+kill_switch_reset_new_backtest_day
+  combo 26/36: 405/429 windows (31071s elapsed)
+  combo 26/36: 408/429 windows (31470s elapsed)
+  combo 26/36: 423/429 windows (31486s elapsed)
+  combo 26/36: 429/429 windows (31495s elapsed)
+[26/36, 31617s elapsed] pnl=+26.63  fees=71.81  windows=429  kelly_fraction=0.2, min_edge_to_trade=0.05, uncertainty_buffer_base=0.05  kill_switch_trips=3
+  combo 27/36: 1/429 windows (31823s elapsed)
+  combo 27/36: 20/429 windows (31839s elapsed)
+  combo 27/36: 35/429 windows (31854s elapsed)
+  combo 27/36: 49/429 windows (31870s elapsed)
+  combo 27/36: 54/429 windows (31886s elapsed)
+  combo 27/36: 63/429 windows (31902s elapsed)
+  combo 27/36: 78/429 windows (31917s elapsed)
+  combo 27/36: 96/429 windows (31933s elapsed)
+  combo 27/36: 113/429 windows (31949s elapsed)
+kill_switch_triggered
+  combo 27/36: 134/429 windows (31965s elapsed)
+  combo 27/36: 146/429 windows (31982s elapsed)
+  combo 27/36: 154/429 windows (31998s elapsed)
+  combo 27/36: 165/429 windows (32015s elapsed)
+  combo 27/36: 182/429 windows (32030s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 27/36: 197/429 windows (32046s elapsed)
+  combo 27/36: 217/429 windows (32061s elapsed)
+  combo 27/36: 236/429 windows (32078s elapsed)
+  combo 27/36: 244/429 windows (32095s elapsed)
+  combo 27/36: 252/429 windows (32111s elapsed)
+  combo 27/36: 266/429 windows (32126s elapsed)
+  combo 27/36: 284/429 windows (32142s elapsed)
+kill_switch_triggered
+  combo 27/36: 303/429 windows (32157s elapsed)
+  combo 27/36: 321/429 windows (32172s elapsed)
+  combo 27/36: 332/429 windows (32194s elapsed)
+  combo 27/36: 341/429 windows (32211s elapsed)
+  combo 27/36: 349/429 windows (32227s elapsed)
+  combo 27/36: 367/429 windows (32242s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 27/36: 387/429 windows (32258s elapsed)
+  combo 27/36: 405/429 windows (32292s elapsed)
+  combo 27/36: 408/429 windows (32681s elapsed)
+  combo 27/36: 422/429 windows (32696s elapsed)
+  combo 27/36: 429/429 windows (32705s elapsed)
+[27/36, 32835s elapsed] pnl=+95.06  fees=58.77  windows=429  kelly_fraction=0.2, min_edge_to_trade=0.05, uncertainty_buffer_base=0.08  kill_switch_trips=2
+  combo 28/36: 1/429 windows (33057s elapsed)
+  combo 28/36: 16/429 windows (33073s elapsed)
+kill_switch_triggered
+  combo 28/36: 29/429 windows (33090s elapsed)
+  combo 28/36: 41/429 windows (33105s elapsed)
+  combo 28/36: 49/429 windows (33122s elapsed)
+  combo 28/36: 53/429 windows (33139s elapsed)
+  combo 28/36: 59/429 windows (33154s elapsed)
+  combo 28/36: 71/429 windows (33170s elapsed)
+  combo 28/36: 84/429 windows (33185s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 28/36: 97/429 windows (33201s elapsed)
+  combo 28/36: 114/429 windows (33216s elapsed)
+  combo 28/36: 133/429 windows (33231s elapsed)
+  combo 28/36: 145/429 windows (33248s elapsed)
+  combo 28/36: 152/429 windows (33263s elapsed)
+  combo 28/36: 160/429 windows (33283s elapsed)
+  combo 28/36: 171/429 windows (33299s elapsed)
+  combo 28/36: 187/429 windows (33314s elapsed)
+  combo 28/36: 200/429 windows (33330s elapsed)
+  combo 28/36: 219/429 windows (33345s elapsed)
+  combo 28/36: 236/429 windows (33362s elapsed)
+  combo 28/36: 244/429 windows (33380s elapsed)
+  combo 28/36: 252/429 windows (33397s elapsed)
+  combo 28/36: 264/429 windows (33413s elapsed)
+  combo 28/36: 280/429 windows (33428s elapsed)
+  combo 28/36: 298/429 windows (33443s elapsed)
+  combo 28/36: 315/429 windows (33458s elapsed)
+kill_switch_triggered
+  combo 28/36: 332/429 windows (33496s elapsed)
+  combo 28/36: 340/429 windows (33513s elapsed)
+  combo 28/36: 346/429 windows (33528s elapsed)
+  combo 28/36: 360/429 windows (33544s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 28/36: 382/429 windows (33559s elapsed)
+  combo 28/36: 398/429 windows (33575s elapsed)
+  combo 28/36: 405/429 windows (33598s elapsed)
+  combo 28/36: 409/429 windows (33826s elapsed)
+  combo 28/36: 423/429 windows (33841s elapsed)
+  combo 28/36: 429/429 windows (33849s elapsed)
+[28/36, 33959s elapsed] pnl=-8.66  fees=91.55  windows=429  kelly_fraction=0.25, min_edge_to_trade=0.01, uncertainty_buffer_base=0.02  kill_switch_trips=2
+  combo 29/36: 1/429 windows (34095s elapsed)
+  combo 29/36: 21/429 windows (34110s elapsed)
+  combo 29/36: 38/429 windows (34125s elapsed)
+  combo 29/36: 50/429 windows (34140s elapsed)
+  combo 29/36: 55/429 windows (34156s elapsed)
+  combo 29/36: 65/429 windows (34171s elapsed)
+  combo 29/36: 82/429 windows (34187s elapsed)
+  combo 29/36: 99/429 windows (34202s elapsed)
+  combo 29/36: 121/429 windows (34218s elapsed)
+kill_switch_triggered
+  combo 29/36: 140/429 windows (34234s elapsed)
+  combo 29/36: 149/429 windows (34250s elapsed)
+  combo 29/36: 159/429 windows (34266s elapsed)
+  combo 29/36: 172/429 windows (34281s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 29/36: 191/429 windows (34297s elapsed)
+  combo 29/36: 209/429 windows (34312s elapsed)
+  combo 29/36: 229/429 windows (34327s elapsed)
+  combo 29/36: 242/429 windows (34344s elapsed)
+  combo 29/36: 249/429 windows (34360s elapsed)
+  combo 29/36: 261/429 windows (34375s elapsed)
+  combo 29/36: 279/429 windows (34391s elapsed)
+  combo 29/36: 299/429 windows (34406s elapsed)
+  combo 29/36: 318/429 windows (34421s elapsed)
+  combo 29/36: 336/429 windows (34437s elapsed)
+  combo 29/36: 343/429 windows (34453s elapsed)
+  combo 29/36: 354/429 windows (34469s elapsed)
+  combo 29/36: 376/429 windows (34484s elapsed)
+  combo 29/36: 393/429 windows (34500s elapsed)
+  combo 29/36: 405/429 windows (34527s elapsed)
+  combo 29/36: 409/429 windows (34685s elapsed)
+  combo 29/36: 424/429 windows (34700s elapsed)
+  combo 29/36: 429/429 windows (34707s elapsed)
+[29/36, 34792s elapsed] pnl=+56.70  fees=107.25  windows=429  kelly_fraction=0.25, min_edge_to_trade=0.01, uncertainty_buffer_base=0.05  kill_switch_trips=1
+  combo 30/36: 1/429 windows (34935s elapsed)
+  combo 30/36: 21/429 windows (34951s elapsed)
+  combo 30/36: 38/429 windows (34967s elapsed)
+  combo 30/36: 50/429 windows (34983s elapsed)
+  combo 30/36: 55/429 windows (34999s elapsed)
+  combo 30/36: 65/429 windows (35015s elapsed)
+  combo 30/36: 81/429 windows (35030s elapsed)
+  combo 30/36: 98/429 windows (35046s elapsed)
+  combo 30/36: 118/429 windows (35062s elapsed)
+kill_switch_triggered
+  combo 30/36: 137/429 windows (35077s elapsed)
+  combo 30/36: 148/429 windows (35094s elapsed)
+  combo 30/36: 157/429 windows (35109s elapsed)
+  combo 30/36: 169/429 windows (35125s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 30/36: 187/429 windows (35140s elapsed)
+  combo 30/36: 203/429 windows (35156s elapsed)
+  combo 30/36: 224/429 windows (35171s elapsed)
+  combo 30/36: 240/429 windows (35186s elapsed)
+  combo 30/36: 246/429 windows (35202s elapsed)
+  combo 30/36: 256/429 windows (35217s elapsed)
+  combo 30/36: 271/429 windows (35233s elapsed)
+  combo 30/36: 291/429 windows (35248s elapsed)
+  combo 30/36: 310/429 windows (35263s elapsed)
+  combo 30/36: 330/429 windows (35278s elapsed)
+kill_switch_triggered
+  combo 30/36: 339/429 windows (35294s elapsed)
+  combo 30/36: 346/429 windows (35309s elapsed)
+  combo 30/36: 360/429 windows (35324s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 30/36: 383/429 windows (35340s elapsed)
+  combo 30/36: 401/429 windows (35355s elapsed)
+kill_switch_triggered
+kill_switch_reset_new_backtest_day
+  combo 30/36: 405/429 windows (35377s elapsed)
+  combo 30/36: 408/429 windows (35535s elapsed)
+  combo 30/36: 424/429 windows (35550s elapsed)
+  combo 30/36: 429/429 windows (35556s elapsed)
+[30/36, 35629s elapsed] pnl=+13.16  fees=84.31  windows=429  kelly_fraction=0.25, min_edge_to_trade=0.01, uncertainty_buffer_base=0.08  kill_switch_trips=3
+  combo 31/36: 1/429 windows (35758s elapsed)
+  combo 31/36: 22/429 windows (35774s elapsed)
+  combo 31/36: 40/429 windows (35790s elapsed)
+  combo 31/36: 51/429 windows (35806s elapsed)
+  combo 31/36: 57/429 windows (35823s elapsed)
+  combo 31/36: 70/429 windows (35839s elapsed)
+  combo 31/36: 88/429 windows (35854s elapsed)
+  combo 31/36: 105/429 windows (35869s elapsed)
+  combo 31/36: 127/429 windows (35884s elapsed)
+  combo 31/36: 143/429 windows (35900s elapsed)
+  combo 31/36: 150/429 windows (35915s elapsed)
+  combo 31/36: 161/429 windows (35931s elapsed)
+  combo 31/36: 175/429 windows (35946s elapsed)
+  combo 31/36: 194/429 windows (35962s elapsed)
+  combo 31/36: 213/429 windows (35977s elapsed)
+  combo 31/36: 232/429 windows (35993s elapsed)
+  combo 31/36: 243/429 windows (36010s elapsed)
+  combo 31/36: 251/429 windows (36026s elapsed)
+  combo 31/36: 264/429 windows (36041s elapsed)
+  combo 31/36: 282/429 windows (36056s elapsed)
+  combo 31/36: 303/429 windows (36072s elapsed)
+  combo 31/36: 322/429 windows (36087s elapsed)
+kill_switch_triggered
+  combo 31/36: 337/429 windows (36102s elapsed)
+  combo 31/36: 344/429 windows (36118s elapsed)
+  combo 31/36: 356/429 windows (36133s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 31/36: 380/429 windows (36149s elapsed)
+  combo 31/36: 397/429 windows (36165s elapsed)
+  combo 31/36: 405/429 windows (36188s elapsed)
+  combo 31/36: 407/429 windows (36329s elapsed)
+  combo 31/36: 423/429 windows (36345s elapsed)
+  combo 31/36: 429/429 windows (36353s elapsed)
+[31/36, 36420s elapsed] pnl=+130.89  fees=114.83  windows=429  kelly_fraction=0.25, min_edge_to_trade=0.02, uncertainty_buffer_base=0.02  kill_switch_trips=1
+  combo 32/36: 1/429 windows (36551s elapsed)
+  combo 32/36: 22/429 windows (36567s elapsed)
+  combo 32/36: 40/429 windows (36583s elapsed)
+  combo 32/36: 51/429 windows (36599s elapsed)
+  combo 32/36: 57/429 windows (36617s elapsed)
+  combo 32/36: 70/429 windows (36632s elapsed)
+  combo 32/36: 89/429 windows (36647s elapsed)
+  combo 32/36: 106/429 windows (36662s elapsed)
+  combo 32/36: 127/429 windows (36677s elapsed)
+  combo 32/36: 143/429 windows (36693s elapsed)
+  combo 32/36: 150/429 windows (36708s elapsed)
+  combo 32/36: 160/429 windows (36723s elapsed)
+kill_switch_triggered
+  combo 32/36: 173/429 windows (36739s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 32/36: 192/429 windows (36755s elapsed)
+  combo 32/36: 211/429 windows (36771s elapsed)
+  combo 32/36: 231/429 windows (36786s elapsed)
+kill_switch_triggered
+  combo 32/36: 242/429 windows (36802s elapsed)
+  combo 32/36: 249/429 windows (36817s elapsed)
+  combo 32/36: 261/429 windows (36833s elapsed)
+  combo 32/36: 279/429 windows (36848s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 32/36: 299/429 windows (36863s elapsed)
+  combo 32/36: 318/429 windows (36878s elapsed)
+  combo 32/36: 333/429 windows (36893s elapsed)
+kill_switch_triggered
+  combo 32/36: 341/429 windows (36909s elapsed)
+  combo 32/36: 349/429 windows (36925s elapsed)
+  combo 32/36: 368/429 windows (36941s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 32/36: 388/429 windows (36956s elapsed)
+  combo 32/36: 405/429 windows (36987s elapsed)
+  combo 32/36: 409/429 windows (37150s elapsed)
+  combo 32/36: 425/429 windows (37166s elapsed)
+  combo 32/36: 429/429 windows (37170s elapsed)
+[32/36, 37243s elapsed] pnl=-12.87  fees=86.59  windows=429  kelly_fraction=0.25, min_edge_to_trade=0.02, uncertainty_buffer_base=0.05  kill_switch_trips=3
+  combo 33/36: 1/429 windows (37376s elapsed)
+  combo 33/36: 22/429 windows (37392s elapsed)
+kill_switch_triggered
+  combo 33/36: 40/429 windows (37407s elapsed)
+  combo 33/36: 51/429 windows (37423s elapsed)
+  combo 33/36: 57/429 windows (37440s elapsed)
+  combo 33/36: 70/429 windows (37456s elapsed)
+  combo 33/36: 88/429 windows (37471s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 33/36: 105/429 windows (37486s elapsed)
+kill_switch_triggered
+  combo 33/36: 127/429 windows (37501s elapsed)
+  combo 33/36: 143/429 windows (37517s elapsed)
+  combo 33/36: 150/429 windows (37532s elapsed)
+  combo 33/36: 161/429 windows (37548s elapsed)
+  combo 33/36: 175/429 windows (37564s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 33/36: 194/429 windows (37579s elapsed)
+  combo 33/36: 213/429 windows (37595s elapsed)
+  combo 33/36: 232/429 windows (37611s elapsed)
+  combo 33/36: 242/429 windows (37626s elapsed)
+  combo 33/36: 249/429 windows (37642s elapsed)
+  combo 33/36: 261/429 windows (37657s elapsed)
+  combo 33/36: 279/429 windows (37672s elapsed)
+  combo 33/36: 299/429 windows (37687s elapsed)
+kill_switch_triggered
+  combo 33/36: 318/429 windows (37702s elapsed)
+  combo 33/36: 335/429 windows (37719s elapsed)
+  combo 33/36: 343/429 windows (37736s elapsed)
+  combo 33/36: 354/429 windows (37752s elapsed)
+  combo 33/36: 376/429 windows (37767s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 33/36: 394/429 windows (37782s elapsed)
+kill_switch_triggered
+kill_switch_reset_new_backtest_day
+  combo 33/36: 405/429 windows (37808s elapsed)
+  combo 33/36: 408/429 windows (37963s elapsed)
+  combo 33/36: 424/429 windows (37979s elapsed)
+  combo 33/36: 429/429 windows (37985s elapsed)
+[33/36, 38055s elapsed] pnl=-11.37  fees=57.16  windows=429  kelly_fraction=0.25, min_edge_to_trade=0.02, uncertainty_buffer_base=0.08  kill_switch_trips=4
+  combo 34/36: 1/429 windows (38189s elapsed)
+  combo 34/36: 21/429 windows (38204s elapsed)
+  combo 34/36: 38/429 windows (38219s elapsed)
+  combo 34/36: 50/429 windows (38234s elapsed)
+  combo 34/36: 55/429 windows (38250s elapsed)
+  combo 34/36: 65/429 windows (38265s elapsed)
+  combo 34/36: 82/429 windows (38280s elapsed)
+  combo 34/36: 99/429 windows (38296s elapsed)
+kill_switch_triggered
+  combo 34/36: 121/429 windows (38312s elapsed)
+  combo 34/36: 140/429 windows (38328s elapsed)
+  combo 34/36: 149/429 windows (38345s elapsed)
+  combo 34/36: 159/429 windows (38360s elapsed)
+  combo 34/36: 172/429 windows (38376s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 34/36: 191/429 windows (38391s elapsed)
+  combo 34/36: 209/429 windows (38406s elapsed)
+  combo 34/36: 229/429 windows (38422s elapsed)
+  combo 34/36: 242/429 windows (38439s elapsed)
+  combo 34/36: 249/429 windows (38454s elapsed)
+  combo 34/36: 261/429 windows (38470s elapsed)
+  combo 34/36: 279/429 windows (38486s elapsed)
+  combo 34/36: 299/429 windows (38501s elapsed)
+  combo 34/36: 318/429 windows (38516s elapsed)
+  combo 34/36: 335/429 windows (38531s elapsed)
+kill_switch_triggered
+  combo 34/36: 342/429 windows (38546s elapsed)
+  combo 34/36: 351/429 windows (38562s elapsed)
+  combo 34/36: 371/429 windows (38577s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 34/36: 390/429 windows (38592s elapsed)
+  combo 34/36: 405/429 windows (38622s elapsed)
+  combo 34/36: 407/429 windows (38779s elapsed)
+  combo 34/36: 423/429 windows (38794s elapsed)
+  combo 34/36: 429/429 windows (38801s elapsed)
+[34/36, 38875s elapsed] pnl=+99.03  fees=93.27  windows=429  kelly_fraction=0.25, min_edge_to_trade=0.05, uncertainty_buffer_base=0.02  kill_switch_trips=2
+  combo 35/36: 1/429 windows (39009s elapsed)
+  combo 35/36: 22/429 windows (39025s elapsed)
+  combo 35/36: 40/429 windows (39040s elapsed)
+  combo 35/36: 51/429 windows (39057s elapsed)
+  combo 35/36: 57/429 windows (39074s elapsed)
+  combo 35/36: 70/429 windows (39090s elapsed)
+  combo 35/36: 88/429 windows (39105s elapsed)
+  combo 35/36: 105/429 windows (39120s elapsed)
+kill_switch_triggered
+  combo 35/36: 127/429 windows (39136s elapsed)
+  combo 35/36: 143/429 windows (39151s elapsed)
+  combo 35/36: 150/429 windows (39167s elapsed)
+  combo 35/36: 160/429 windows (39182s elapsed)
+  combo 35/36: 173/429 windows (39198s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 35/36: 192/429 windows (39213s elapsed)
+  combo 35/36: 210/429 windows (39228s elapsed)
+  combo 35/36: 230/429 windows (39244s elapsed)
+  combo 35/36: 242/429 windows (39260s elapsed)
+  combo 35/36: 249/429 windows (39275s elapsed)
+  combo 35/36: 261/429 windows (39291s elapsed)
+  combo 35/36: 279/429 windows (39306s elapsed)
+  combo 35/36: 299/429 windows (39321s elapsed)
+kill_switch_triggered
+  combo 35/36: 319/429 windows (39337s elapsed)
+  combo 35/36: 335/429 windows (39353s elapsed)
+  combo 35/36: 342/429 windows (39368s elapsed)
+  combo 35/36: 351/429 windows (39383s elapsed)
+  combo 35/36: 371/429 windows (39398s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 35/36: 390/429 windows (39413s elapsed)
+kill_switch_triggered
+kill_switch_reset_new_backtest_day
+  combo 35/36: 405/429 windows (39443s elapsed)
+  combo 35/36: 408/429 windows (39597s elapsed)
+  combo 35/36: 424/429 windows (39613s elapsed)
+  combo 35/36: 429/429 windows (39619s elapsed)
+[35/36, 39695s elapsed] pnl=+26.63  fees=71.81  windows=429  kelly_fraction=0.25, min_edge_to_trade=0.05, uncertainty_buffer_base=0.05  kill_switch_trips=3
+  combo 36/36: 1/429 windows (39823s elapsed)
+  combo 36/36: 21/429 windows (39838s elapsed)
+  combo 36/36: 39/429 windows (39854s elapsed)
+  combo 36/36: 51/429 windows (39871s elapsed)
+  combo 36/36: 57/429 windows (39888s elapsed)
+  combo 36/36: 70/429 windows (39904s elapsed)
+  combo 36/36: 88/429 windows (39919s elapsed)
+  combo 36/36: 105/429 windows (39934s elapsed)
+kill_switch_triggered
+  combo 36/36: 127/429 windows (39949s elapsed)
+  combo 36/36: 143/429 windows (39965s elapsed)
+  combo 36/36: 150/429 windows (39980s elapsed)
+  combo 36/36: 161/429 windows (39996s elapsed)
+  combo 36/36: 175/429 windows (40012s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 36/36: 193/429 windows (40027s elapsed)
+  combo 36/36: 212/429 windows (40043s elapsed)
+  combo 36/36: 231/429 windows (40058s elapsed)
+  combo 36/36: 242/429 windows (40073s elapsed)
+  combo 36/36: 249/429 windows (40089s elapsed)
+  combo 36/36: 261/429 windows (40104s elapsed)
+  combo 36/36: 279/429 windows (40120s elapsed)
+kill_switch_triggered
+  combo 36/36: 299/429 windows (40135s elapsed)
+  combo 36/36: 318/429 windows (40150s elapsed)
+  combo 36/36: 334/429 windows (40165s elapsed)
+  combo 36/36: 342/429 windows (40182s elapsed)
+  combo 36/36: 351/429 windows (40197s elapsed)
+  combo 36/36: 371/429 windows (40212s elapsed)
+kill_switch_reset_new_backtest_day
+  combo 36/36: 390/429 windows (40227s elapsed)
+  combo 36/36: 405/429 windows (40256s elapsed)
+  combo 36/36: 409/429 windows (40428s elapsed)
+  combo 36/36: 424/429 windows (40443s elapsed)
+  combo 36/36: 429/429 windows (40450s elapsed)
+[36/36, 40525s elapsed] pnl=+95.06  fees=58.77  windows=429  kelly_fraction=0.25, min_edge_to_trade=0.05, uncertainty_buffer_base=0.08  kill_switch_trips=2
+
+Ranked by realized PnL:
+pnl=+130.89  fees=114.83  windows=429  kelly_fraction=0.15, min_edge_to_trade=0.02, uncertainty_buffer_base=0.02  kill_switch_trips=1
+pnl=+130.89  fees=114.83  windows=429  kelly_fraction=0.2, min_edge_to_trade=0.02, uncertainty_buffer_base=0.02  kill_switch_trips=1
+pnl=+130.89  fees=114.83  windows=429  kelly_fraction=0.25, min_edge_to_trade=0.02, uncertainty_buffer_base=0.02  kill_switch_trips=1
+pnl=+128.94  fees=113.24  windows=429  kelly_fraction=0.1, min_edge_to_trade=0.02, uncertainty_buffer_base=0.02  kill_switch_trips=1
+pnl=+99.03  fees=93.27  windows=429  kelly_fraction=0.1, min_edge_to_trade=0.05, uncertainty_buffer_base=0.02  kill_switch_trips=2
+pnl=+99.03  fees=93.27  windows=429  kelly_fraction=0.15, min_edge_to_trade=0.05, uncertainty_buffer_base=0.02  kill_switch_trips=2
+pnl=+99.03  fees=93.27  windows=429  kelly_fraction=0.2, min_edge_to_trade=0.05, uncertainty_buffer_base=0.02  kill_switch_trips=2
+pnl=+99.03  fees=93.27  windows=429  kelly_fraction=0.25, min_edge_to_trade=0.05, uncertainty_buffer_base=0.02  kill_switch_trips=2
+pnl=+95.06  fees=58.77  windows=429  kelly_fraction=0.1, min_edge_to_trade=0.05, uncertainty_buffer_base=0.08  kill_switch_trips=2
+pnl=+95.06  fees=58.77  windows=429  kelly_fraction=0.15, min_edge_to_trade=0.05, uncertainty_buffer_base=0.08  kill_switch_trips=2
+pnl=+95.06  fees=58.77  windows=429  kelly_fraction=0.2, min_edge_to_trade=0.05, uncertainty_buffer_base=0.08  kill_switch_trips=2
+pnl=+95.06  fees=58.77  windows=429  kelly_fraction=0.25, min_edge_to_trade=0.05, uncertainty_buffer_base=0.08  kill_switch_trips=2
+pnl=+56.70  fees=107.25  windows=429  kelly_fraction=0.2, min_edge_to_trade=0.01, uncertainty_buffer_base=0.05  kill_switch_trips=1
+pnl=+56.70  fees=107.25  windows=429  kelly_fraction=0.25, min_edge_to_trade=0.01, uncertainty_buffer_base=0.05  kill_switch_trips=1
+pnl=+55.03  fees=107.28  windows=429  kelly_fraction=0.15, min_edge_to_trade=0.01, uncertainty_buffer_base=0.05  kill_switch_trips=1
+pnl=+52.18  fees=109.85  windows=429  kelly_fraction=0.1, min_edge_to_trade=0.01, uncertainty_buffer_base=0.05  kill_switch_trips=1
+pnl=+26.63  fees=71.81  windows=429  kelly_fraction=0.1, min_edge_to_trade=0.05, uncertainty_buffer_base=0.05  kill_switch_trips=3
+pnl=+26.63  fees=71.81  windows=429  kelly_fraction=0.15, min_edge_to_trade=0.05, uncertainty_buffer_base=0.05  kill_switch_trips=3
+pnl=+26.63  fees=71.81  windows=429  kelly_fraction=0.2, min_edge_to_trade=0.05, uncertainty_buffer_base=0.05  kill_switch_trips=3
+pnl=+26.63  fees=71.81  windows=429  kelly_fraction=0.25, min_edge_to_trade=0.05, uncertainty_buffer_base=0.05  kill_switch_trips=3
+pnl=+13.16  fees=84.31  windows=429  kelly_fraction=0.15, min_edge_to_trade=0.01, uncertainty_buffer_base=0.08  kill_switch_trips=3
+pnl=+13.16  fees=84.31  windows=429  kelly_fraction=0.2, min_edge_to_trade=0.01, uncertainty_buffer_base=0.08  kill_switch_trips=3
+pnl=+13.16  fees=84.31  windows=429  kelly_fraction=0.25, min_edge_to_trade=0.01, uncertainty_buffer_base=0.08  kill_switch_trips=3
+pnl=+12.25  fees=84.38  windows=429  kelly_fraction=0.1, min_edge_to_trade=0.01, uncertainty_buffer_base=0.08  kill_switch_trips=3
+pnl=-8.66  fees=91.55  windows=429  kelly_fraction=0.2, min_edge_to_trade=0.01, uncertainty_buffer_base=0.02  kill_switch_trips=2
+pnl=-8.66  fees=91.55  windows=429  kelly_fraction=0.25, min_edge_to_trade=0.01, uncertainty_buffer_base=0.02  kill_switch_trips=2
+pnl=-11.37  fees=57.16  windows=429  kelly_fraction=0.15, min_edge_to_trade=0.02, uncertainty_buffer_base=0.08  kill_switch_trips=4
+pnl=-11.37  fees=57.16  windows=429  kelly_fraction=0.2, min_edge_to_trade=0.02, uncertainty_buffer_base=0.08  kill_switch_trips=4
+pnl=-11.37  fees=57.16  windows=429  kelly_fraction=0.25, min_edge_to_trade=0.02, uncertainty_buffer_base=0.08  kill_switch_trips=4
+pnl=-12.03  fees=57.17  windows=429  kelly_fraction=0.1, min_edge_to_trade=0.02, uncertainty_buffer_base=0.08  kill_switch_trips=4
+pnl=-12.87  fees=86.59  windows=429  kelly_fraction=0.15, min_edge_to_trade=0.02, uncertainty_buffer_base=0.05  kill_switch_trips=3
+pnl=-12.87  fees=86.59  windows=429  kelly_fraction=0.2, min_edge_to_trade=0.02, uncertainty_buffer_base=0.05  kill_switch_trips=3
+pnl=-12.87  fees=86.59  windows=429  kelly_fraction=0.25, min_edge_to_trade=0.02, uncertainty_buffer_base=0.05  kill_switch_trips=3
+pnl=-13.42  fees=90.52  windows=429  kelly_fraction=0.1, min_edge_to_trade=0.01, uncertainty_buffer_base=0.02  kill_switch_trips=3
+pnl=-13.92  fees=86.63  windows=429  kelly_fraction=0.1, min_edge_to_trade=0.02, uncertainty_buffer_base=0.05  kill_switch_trips=3
+pnl=-17.76  fees=90.60  windows=429  kelly_fraction=0.15, min_edge_to_trade=0.01, uncertainty_buffer_base=0.02  kill_switch_trips=3
+(.venv) tobiashartana@02-05-0135-0317 Poly15min02 % 
+
+-----------------------------------------------------------------------------------------------Opus 5 Analysis - 2026/09/03 08:56
+Verdict: No — not ready for live capital, and the sweep didn't test what you think it tested.
+
+1. The Kelly axis is inert — a config bug, not a result
+
+positions/manager.py:244-246:
+notional = s.bankroll * s.kelly_fraction * f_star   # 1000 * 0.15 * f_star
+size = notional / price
+size = min(size, edge.filled_size, s.paper_trade_size)   # ← caps at 20 shares
+
+With bankroll=1000 and paper_trade_size=20, Kelly sizing only binds when f_star < 0.013·price — i.e. essentially never. Every real signal saturates the 20-share cap. The log proves it: kelly_fraction=0.20 and 0.25 produce byte-identical PnL in all 9 cells:
+
+┌──────────┬────────┬─────────┬─────────┬─────────┬─────────┐
+│ min_edge │ buffer │ k=0.10  │ k=0.15  │ k=0.20  │ k=0.25  │
+├──────────┼────────┼─────────┼─────────┼─────────┼─────────┤
+│ 0.01     │ 0.02   │ −13.42  │ −17.76  │ −8.66   │ −8.66   │
+├──────────┼────────┼─────────┼─────────┼─────────┼─────────┤
+│ 0.01     │ 0.05   │ +52.18  │ +55.03  │ +56.70  │ +56.70  │
+├──────────┼────────┼─────────┼─────────┼─────────┼─────────┤
+│ 0.01     │ 0.08   │ +12.25  │ +13.16  │ +13.16  │ +13.16  │
+├──────────┼────────┼─────────┼─────────┼─────────┼─────────┤
+│ 0.02     │ 0.02   │ +128.94 │ +130.89 │ +130.89 │ +130.89 │
+├──────────┼────────┼─────────┼─────────┼─────────┼─────────┤
+│ 0.02     │ 0.05   │ −13.92  │ −12.87  │ −12.87  │ −12.87  │
+├──────────┼────────┼─────────┼─────────┼─────────┼─────────┤
+│ 0.02     │ 0.08   │ −12.03  │ −11.37  │ −11.37  │ −11.37  │
+├──────────┼────────┼─────────┼─────────┼─────────┼─────────┤
+│ 0.05     │ 0.02   │ +99.03  │ +99.03  │ +99.03  │ +99.03  │
+├──────────┼────────┼─────────┼─────────┼─────────┼─────────┤
+│ 0.05     │ 0.05   │ +26.63  │ +26.63  │ +26.63  │ +26.63  │
+├──────────┼────────┼─────────┼─────────┼─────────┼─────────┤
+│ 0.05     │ 0.08   │ +95.06  │ +95.06  │ +95.06  │ +95.06  │
+└──────────┴────────┴─────────┴─────────┴─────────┴─────────┘
+
+You ran 36 combos over 11.3 hours to get 9 distinct results. The Kelly axis spans at most $9 of PnL; the other two axes span $148. Your effective bet size is a fixed ~$10–20 flat stake, and bankroll is a dead parameter.
+
+2. The headline result is statistically indistinguishable from zero
+
+Best config: pnl=+130.89, fees=114.83 over 429 windows.
+
+- Fees at 200bps ⇒ $5,741 notional traded; gross PnL $245.72 ⇒ 4.28% gross margin, 2.00% eaten by fees, 2.28% net
+- Per window: $0.305
+
+Noise estimate: ~$13.4 notional/window at ~$0.50/share ≈ 27 shares, so per-window PnL σ ≈ $13.4. Over 429 windows, σ_total ≈ $277. (If fewer windows actually trade, positions are larger and σ goes up — $277 is a floor.)
+
+t ≈ 130.89 / 277 ≈ 0.47. That is a coin flip. And it's the maximum of 9 in-sample draws — the expected max of 9 correlated noise draws sits right about where +$131 sits relative to the grid mean of +$43 (σ across configs = $54).
+
+3. The parameter surface is noise, not signal
+
+Adjacent grid points flip sign with no plateau:
+- Hold buffer=0.02, sweep min_edge: −8.66 → +130.89 → +99.03
+- Hold min_edge=0.02, sweep buffer: +130.89 → −12.87 → −11.37
+
+A real edge produces a broad, smooth optimum. A $144 swing from moving uncertainty_buffer_base 0.02→0.05 is fitting to which specific windows happened to resolve favorably.
+
+4. Sample is one regime, no holdout
+
+2026-08-03 … 2026-08-09   (7 contiguous days, 96 mkts/day)
+2026-09-01 … 2026-09-02   (25 markets)
+429 backtestable windows ≈ 4.5 days of continuous market time in a single early-August regime. The Sep 1–2 data is a natural holdout but far too small to validate on.
+
+5. Fee sensitivity is brutal
+
+Breakeven is at a 4.28% taker fee. Your assumed 200bps is already half your gross edge:
+
+┌───────────┬─────────────────┐
+│ taker fee │ best-config PnL │
+├───────────┼─────────────────┤
+│ 0 bps     │ +245.72         │
+├───────────┼─────────────────┤
+│ 100 bps   │ +188.31         │
+├───────────┼─────────────────┤
+│ 200 bps   │ +130.89         │
+├───────────┼─────────────────┤
+│ 300 bps   │ +73.48          │
+├───────────┼─────────────────┤
+│ 428 bps   │ 0.00            │
+└───────────┴─────────────────┘
+
+Verify taker_fee_bps=200 against Polymarket's actual current schedule for these 15-min crypto markets before anything else — the entire result lives or dies on it.
+
+Also worth noting: fills execute at the recorded book VWAP with only a sim_fill_ratio=0.9 size haircut. slippage_buffer_bps=50 is subtracted from net_edge as an entry gate, never charged as a fill cost (sim/paper.py:96). There's no latency or adverse-selection penalty on price — optimistic on exactly the fast-moving 15-min windows where it matters most.
+
+---
+
+On calibration — this is the genuinely useful finding
+
+I ran it:
+
+Train: 160,830 rows (295 windows)   Test: 68,928 rows (134 windows)
+Analytic   Phi(deviation)                    log-loss: 0.5179
+Calibrated sigmoid(-0.018 + 0.539*deviation) log-loss: 0.5026
+Calibration beats analytic out-of-sample (delta=+0.0153)
+
+The fitted slope is 0.539. The analytic model Φ(x) ≈ sigmoid(1.702x) — an implied slope of ~1.70. Your fair-value model is roughly 3.2× overconfident in the deviation signal.
+
+That's not a footnote — it's the mechanism behind everything above. An overconfident p_up_fair inflates net_edge, so the strategy takes trades that have no real edge and pays 2% to do it. It also explains why the surviving configs are the ones that trade less (higher min_edge, wider buffer): they're accidentally compensating for a miscalibrated input.
+
+Two caveats on that log-loss, though. Rows are logged every decision tick, so they're heavily correlated within a window (295/134 windows, not 160k/69k independent samples). And most of the apparent skill is concentrated near expiry, where deviation is large, the outcome is nearly determined, and the market already knows — so 0.50 log-loss overstates tradeable edge considerably.
+
+What I'd do, in order
+
+1. Fix the sizing bug. Either raise paper_trade_size/max_notional_per_market so Kelly can actually bind, or drop kelly_fraction from the grid and admit it's flat sizing. Right now you can't reason about risk at all.
+2. Wire the calibrated slope into fair_value.py and re-run. This is the highest-expected-value change available and it's cheap.
+3. Verify the real fee schedule. Everything is downstream of it.
+4. Re-sweep on a 3×3 grid with a time-ordered split — tune on Aug 3–6, evaluate once on Aug 7–9. Report per-window mean and standard error, not just total PnL, so significance is visible in the output.
+5. Collect more data before trusting any of it. For a 2.28% net margin per trade to show t≈2, you need on the order of thousands of windows — months, not a week.
+
+The encouraging part: log-loss 0.50 vs 0.693 for a coin flip means deviation genuinely predicts. There's a real signal here. It's just not yet demonstrated to survive a 2% taker fee, and this sweep can't tell you either way.
