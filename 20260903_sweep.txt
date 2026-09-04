@@ -1130,3 +1130,108 @@ What I'd do, in order
 5. Collect more data before trusting any of it. For a 2.28% net margin per trade to show t≈2, you need on the order of thousands of windows — months, not a week.
 
 The encouraging part: log-loss 0.50 vs 0.693 for a coin flip means deviation genuinely predicts. There's a real signal here. It's just not yet demonstrated to survive a 2% taker fee, and this sweep can't tell you either way.
+
+------------------------------------------------------
+ does step 3 mean fixing sweep strategy? or actually doing sweep for 11 hours again?
+
+Step 3 is the fee lookup — that's a 5-minute check with zero compute. You're probably thinking of step 4, the re-sweep. Let me check what that would actually cost.
+
+  Listed 1 directory, ran 2 shell commands
+
+Found the real cost driver. Let me measure it.
+
+  Ran 3 shell commands
+
+JSON isn't the bottleneck — good thing I measured. Let me check the real constraint for parallelizing: memory per process.
+
+  Ran 3 shell commands
+
+Neither — you're thinking of step 4. Step 3 was just "verify the real fee schedule," which is a 5-minute lookup on Polymarket's docs with zero compute. I put it before the re-sweep deliberately: it's a go/no-go gate. If the true taker fee is ≥ 428bps, the strategy is already dead at breakeven and there's nothing worth sweeping.
+
+On the re-sweep: no, it does not cost 11 hours again. I measured where that time actually went.
+
+Where the 11.3 hours went
+
+Per-combo timing from your own log:
+
+combos 11→28:  ~1200s each   (cold page cache)
+combos 28→36:   ~820s each   (warm — 32% faster)
+
+And I profiled the breakdown of that ~820s warm combo:
+
+┌──────────────────────────────────────┬───────┬───────┐
+│                phase                 │ cost  │ share │
+├──────────────────────────────────────┼───────┼───────┤
+│ load 13.7M Binance ticks from sqlite │ 45s   │ 5%    │
+├──────────────────────────────────────┼───────┼───────┤
+│ build + sort 14.8M event tuples      │ 19s   │ 2%    │
+├──────────────────────────────────────┼───────┼───────┤
+│ replay loop (14.8M event dispatches) │ ~756s │ 93%   │
+└──────────────────────────────────────┴───────┴───────┘
+
+Peak RSS ≈ 2.0 GB per process. JSON round-tripping, which I assumed was the culprit, is only ~0.25h across all 36 combos — not the problem. It's just 533M Python event dispatches.
+
+Why 9 combos ≠ 9× the cost
+
+I checked what the swept params actually touch:
+
+kelly_fraction          → manager.py:244  (sizing)
+min_edge_to_trade       → manager.py:236  (threshold)
+uncertainty_buffer_base → edge.py:63      (buffer)
+
+None of them touch BinanceFeed, ClobFeed, FeatureEngine, or compute_fair_value — which is where the 93% lives. Every combo replays the identical event stream and recomputes identical features and identical fair values, then differs only at the final decision step. That's why the same nine PnL numbers keep recurring.
+
+Your options
+
+┌─────────────────────────────────────────────────────┬──────────────────────┬────────────┐
+│                       option                        │    change needed     │ wall clock │
+├─────────────────────────────────────────────────────┼──────────────────────┼────────────┤
+│ A — 9 combos serial, full data                      │ drop kelly from grid │ ~2.0 h     │
+├─────────────────────────────────────────────────────┼──────────────────────┼────────────┤
+│ B — 9 combos, 3 procs parallel                      │ ~20-line runner      │ ~41 min    │
+├─────────────────────────────────────────────────────┼──────────────────────┼────────────┤
+│ C — B, but train split only (Aug 3–6, ~245 windows) │ + date filter        │ ~25 min    │
+├─────────────────────────────────────────────────────┼──────────────────────┼────────────┤
+│ D — replay once, evaluate 9 configs                 │ engine refactor      │ ~15–20 min │
+└─────────────────────────────────────────────────────┴──────────────────────┴────────────┘
+
+3 processes, not 8 — at 2.0 GB peak each against 8.6 GB total, four would swap.
+
+Option D is the structurally correct fix and the sweep docstring already promises full per-combo isolation (fresh PositionManager/RiskGate/PaperExecutor/Database), so it's a matter of holding a list of nine decision stacks fed from one event loop rather than one. It's also the only option that stays cheap when you later want a 5×5 grid.
+
+For context on the original run: the entire kelly_fraction=0.25 row — 9 combos, roughly 2.8 hours — produced results byte-identical to the 0.20 row. Realistically ~6–8 of the 11.3 hours bought no decision-relevant information at all.
+
+What I'd actually do
+
+Fee check first (free). Then option B — it's a small, low-risk runner script, gets you under an hour, and doesn't touch the engine while you're still changing the fair-value model in step 2. Save option D for when the grid grows.
+
+One caveat on C: splitting to Aug 3–6 leaves ~245 train windows, and at the ~$0.30/window effect size you saw, the split halves are individually even noisier than the full sample. The split is for honesty about overfitting, not for statistical power — you won't get power until step 5.
+
+Want me to write the parallel runner, or the single-replay refactor?
+
+✻ Cooked for 4m 45s
+
+※ recap: You want to know if the sweep justifies going live; my read is no, and the results aren't ready to calibrate on. Next: confirm Polymarket's real taker fee, then tell me whether to write the parallel sweep runner. (disable recaps in /config)
+
+
+
+
+---------------------------------------------2026/09/02 calibrate, sweep, then finally backtest
+This confirms it: calibration_path is a global settings file that load_calibration() picks up automatically for any run (backtest, sweep, live) — there's no per-run flag needed. So whether that file exists changes what both backtest and sweep actually simulate.
+
+Run them in this order:
+
+1. poly15m-calibrate — fits the correction and checks whether your raw analytic model is biased. 
+If it passes (beats analytic model out-of-sample, no band overstates P(up) materially), 
+run it again with --write to persist var/calibration.json. 
+Do this first because it silently changes the pricing model every downstream run uses.
+
+2. poly15m-sweep — now that the pricing model is settled (calibrated or confirmed-fine raw), 
+grid-search kelly_fraction / min_edge_to_trade / uncertainty_buffer_base to find the best-performing combo under that pricing model.
+
+3. poly15m-backtest — run once more with the winning combo from sweep applied as your actual settings, 
+as the final full-dataset PnL/kill-switch report you use to decide "ready for live."
+
+If you ran sweep/backtest before calibrate, you'd be tuning and validating against the wrong (possibly overconfident) probabilities — 
+you'd have to redo both once calibration lands.
+

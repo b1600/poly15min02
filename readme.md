@@ -79,9 +79,9 @@ Positive `realized_pnl` after `fees_paid` across many windows is the signal to a
 ## 6. Once you have real data: backtest and calibrate
 
 ```
-.venv/bin/poly15m-backtest      # replays everything recorded so far through the exact same strategy code
-.venv/bin/poly15m-sweep         # tries a grid of Kelly fraction / edge threshold / buffer settings
 .venv/bin/poly15m-calibrate     # fits a logistic correction, compares it to the analytic model
+.venv/bin/poly15m-sweep         # tries a grid of Kelly fraction / edge threshold / buffer settings
+.venv/bin/poly15m-backtest      # replays everything recorded so far through the exact same strategy code
 ```
 
 `poly15m-calibrate` will likely tell you there isn't enough data yet — it deliberately refuses to report anything until you have a real number of distinct resolved windows (not just rows), not just one trending window's worth. That's intentional, not a bug.
