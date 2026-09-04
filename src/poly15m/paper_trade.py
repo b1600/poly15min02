@@ -276,7 +276,17 @@ async def run() -> None:
         telegram_bot_token=settings.telegram_bot_token,
         telegram_chat_id=settings.telegram_chat_id,
     )
-    logger.info("starting", extra={"environment": settings.environment, "db_path": str(settings.db_path)})
+    calibration = load_calibration(settings)
+    logger.info(
+        "starting",
+        extra={
+            "environment": settings.environment,
+            "db_path": str(settings.db_path),
+            "calibration_active": calibration is not None,
+            "calibration_fitted_ts": calibration.fitted_ts if calibration else None,
+            "calibration_coef": calibration.coef if calibration else None,
+        },
+    )
 
     db = Database(settings.db_path)
     binance_feed = BinanceFeed(settings, db)
