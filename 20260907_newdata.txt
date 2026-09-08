@@ -1,0 +1,62 @@
+ explain step by step what should I do next
+
+Given where things stand now — corrected backtest done, and all three checks agree the original config didn't hold up — here's the sequence:
+
+1. Don't write calibration yet
+
+Leave var/calibration.json as-is (frozen at Sep 4, train_end_ts unchanged). None of the three checks passed cleanly enough to justify rolling the cutoff forward. Writing now would make the current out-of-sample window in-sample again, and you'd lose the ability to tell whether the next candidate actually generalizes.
+
+2. Switch your working candidate to the sweep's new leader
+
+kelly=0.05, min_edge_to_trade=0.05, uncertainty_buffer_base=0.05 won the 718-window sweep (+937.56, beating the old 0.1/0.05/0.05 by 32%). Treat this as the new hypothesis to test — not yet as validated truth, since it was chosen on this data, not tested against data it hadn't seen.
+
+3. Let live/paper trading keep running to accumulate a fresh, untouched batch
+
+Whatever is currently recording windows (paper trading / poly15m-record) should keep running undisturbed. You need a new chunk of windows that neither the calibration fit nor this sweep/backtest round has seen — the same discipline that made this round's check meaningful.
+
+4. When that new batch is meaningful, repeat the same three-step check — this time on the new candidate
+
+- poly15m-backtest with POLY15M_KELLY_FRACTION=0.05 POLY15M_MIN_EDGE_TO_TRADE=0.05 POLY15M_UNCERTAINTY_BUFFER_BASE=0.05, calibration still frozen. 
+Compare the delta on the newest windows only against this round's own rate (+937.56 over 718 windows ≈ $1.31/window) — not against the old $1.48 baseline, 
+since that belonged to a different combo.
+
+- poly15m-calibrate dry run again, compare slope/overstatement bands to this round's numbers (log-loss delta +0.1091, 1 band materially overstating).
+
+- poly15m-sweep again, check whether kelly=0.05/0.05/0.05 wins again, or whether the ranking shuffles a third time.
+
+5. Apply the same pass/fail bar as before
+
+- If the new-window rate holds near $1.31/window (or better) and the sweep still favors 0.05/0.05/0.05 → that's two independent rounds agreeing, real evidence.
+- If it craters or the winner changes again → the config space itself may be unstable/overfit-prone on this market, and it's worth stepping back to look at why (e.g., is 718 windows still too small a sample for a 3-parameter sweep to be trustworthy at all?).
+
+6. Only then consider poly15m-calibrate --write
+
+Do this only after a candidate survives at least one full independent round, and only roll train_end_ts forward at that point — not before.
+
+For now, the immediate action is just #3: let more unseen data accumulate before running anything else. There's nothing more to test productively until that happens.
+
+✻ Baked for 15s
+----------------------------------------------------------------------
+
+❯ how much new data do I need before re-checking
+
+There's no formal rule in the plan itself — it just says "a meaningful chunk." Here's how to size that concretely from what you've actually seen:
+
+What the last round tells you about noise
+
+- The 429→718 round added 289 windows (≈3 days at 96 windows/day for continuous 15-min windows) and that was enough to show a stark, unambiguous signal — the per-window rate cratered from $1.48 to $0.26, an ~82% drop. Big effects like that don't need much data to show up.
+- The sweep's ranking flip is a thinner signal though: the new #1 (kelly=0.05) beat the old #1 by $226.63 over 718 windows ≈ $0.32/window margin. That's a small edge to trust off one sweep pass — it could easily reshuffle again with another 289-window batch just from noise.
+- The calibration dry-run's overstatement bands only reached significance (z≈2.5–2.8) with ~90–120 windows per probability band — so band-level calibration checks need a comparable per-bucket count, not just a large total.
+
+Practical target
+
+- Floor: ~300 windows (~3 days) — matches your last increment, keeps rounds comparable, and is enough to catch another gross blowup like this round's.
+- Better: ~500–600 windows (~5–6 days) — needed to actually trust the sweep ranking rather than watch it keep flipping between similarly-sized combos. The margins between the top 3 sweep entries (937.56 / 736.47 / 710.93) are close enough that you want more than a bare-minimum sample before picking a winner with confidence.
+- Don't just count windows — try to make sure the batch spans different days/volatility regimes (a calm stretch and a volatile stretch), not just three quiet days back to back. A 15-min BTC up/down edge is plausibly regime-dependent, and a batch that's accidentally all one regime will look falsely stable or falsely bad.
+
+Bottom line
+
+Wait for at least ~300 new windows before bothering to re-check at all (less than that, you're mostly measuring noise). But don't treat a single ~300-window pass as final — plan on running this check 2–3 times at that cadence before trusting any config (including the new kelly=0.05 leader) enough to write calibration and go live.
+
+✻ Churned for 39s
+

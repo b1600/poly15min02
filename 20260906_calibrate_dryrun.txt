@@ -1,0 +1,47 @@
+Loaded 407629 (deviation, outcome) sample(s) from var/poly15m.db.
+
+Train rows: 285340 (527 windows)   Test rows: 122289 (190 windows)
+Analytic model   (Phi(deviation))   log-loss: 0.6419
+Calibrated model (time-varying)     log-loss: 0.5327
+Calibration beats the analytic model out-of-sample (delta=+0.1091).
+
+Effective slope on `deviation` (analytic is a flat 1.702):
+     15s left: 0.796   (2.14x overconfident)
+     60s left: 0.933   (1.82x overconfident)
+    300s left: 1.093   (1.56x overconfident)
+    900s left: 1.202   (1.42x overconfident)
+
+ANALYTIC -- predicted vs actually realised P(up), out-of-sample:
+           band    ticks  windows    pred    real     over      z
+  [0.00,0.02)   13,270      107   0.003   0.060   -0.057  -2.49
+  [0.02,0.05)    3,602      113   0.034   0.154   -0.120  -3.52
+  [0.05,0.10)    4,523      116   0.074   0.155   -0.081  -2.41
+  [0.10,0.20)    7,901      134   0.150   0.208   -0.058  -1.65
+  [0.20,0.35)   13,481      148   0.275   0.307   -0.032  -0.83
+  [0.35,0.50)   15,813      179   0.432   0.419   +0.014   0.37
+  [0.50,0.65)   19,248      188   0.562   0.551   +0.011   0.31
+  [0.65,0.80)   13,008      153   0.724   0.683   +0.041   1.08
+  [0.80,0.90)    7,711      135   0.850   0.770   +0.080   2.22  <-- overpays
+  [0.90,0.95)    4,123      122   0.926   0.838   +0.088   2.64  <-- overpays
+  [0.95,0.98)    3,501      116   0.966   0.883   +0.084   2.81  <-- overpays
+  [0.98,1.00)   13,434      114   0.996   0.931   +0.066   2.76  <-- overpays
+
+CALIBRATED -- predicted vs actually realised P(up), out-of-sample:
+           band    ticks  windows    pred    real     over      z
+  [0.00,0.02)    6,894       90   0.005   0.020   -0.015  -1.03
+  [0.02,0.05)    2,950       99   0.034   0.080   -0.046  -1.69
+  [0.05,0.10)    4,423      108   0.075   0.127   -0.053  -1.64
+  [0.10,0.20)    9,002      119   0.150   0.163   -0.013  -0.39
+  [0.20,0.35)   16,514      145   0.279   0.269   +0.010   0.28
+  [0.35,0.50)   24,869      190   0.441   0.428   +0.013   0.36
+  [0.50,0.65)   20,165      170   0.572   0.601   -0.029  -0.76
+  [0.65,0.80)   14,719      145   0.720   0.762   -0.042  -1.20
+  [0.80,0.90)    7,635      118   0.850   0.858   -0.008  -0.26
+  [0.90,0.95)    4,361      107   0.925   0.909   +0.017   0.60
+  [0.95,0.98)    3,121       98   0.966   0.938   +0.027   1.12
+  [0.98,1.00)    7,636       93   0.995   0.928   +0.067   2.51  <-- overpays
+
+Bands overstating materially and significantly:  analytic 4, calibrated 1.
+(z is in window-clustered standard errors -- ticks inside one window are not independent observations.)
+
+(dry run -- pass --write to persist these coefficients.)

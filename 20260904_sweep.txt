@@ -995,6 +995,7 @@ kill_switch_reset_new_backtest_day
   combo 27/27: 429/429 windows (27171s elapsed)
 [27/27, 27263s elapsed] pnl=+383.93  fees=75.97  windows=429  kelly_fraction=0.1, min_edge_to_trade=0.05, uncertainty_buffer_base=0.08  kill_switch_trips=4
 
+
 Ranked by realized PnL:
 pnl=+635.31  fees=122.08  windows=429  kelly_fraction=0.1, min_edge_to_trade=0.05, uncertainty_buffer_base=0.05  kill_switch_trips=3
 pnl=+607.42  fees=124.38  windows=429  kelly_fraction=0.05, min_edge_to_trade=0.05, uncertainty_buffer_base=0.05  kill_switch_trips=3
@@ -1052,23 +1053,4 @@ Next: let new data accumulate and rerun to check it holds out-of-sample.
 
 
 ------------------------------------------------
-
-❯ what should I do after i accumulate new data?
-
-  Searched for 1 pattern
-
-Once you've got a meaningful chunk of new windows (recorded after this run — i.e., truly unseen by both the calibration fit and the sweep/backtest just done), the goal is to check whether the config actually generalizes rather than being an artifact of the first 429 windows. In order:
-
-1. Re-run poly15m-backtest with the same env overrides, don't touch calibration yet. Keep calibration.json frozen (its train_end_ts is fixed from the fit you already did) and keep POLY15M_KELLY_FRACTION=0.1 POLY15M_MIN_EDGE_TO_TRADE=0.05 POLY15M_UNCERTAINTY_BUFFER_BASE=0.05. It'll replay all windows again (old + new), but since window count and PnL are cumulative and windows replay in chronological order, the delta vs this run tells you the story:
-   - new_windows = new_total − 429
-   - new_pnl = new_net_pnl − 635.31
-   - Check new_pnl / new_windows against the baseline rate (~$1.48/window from this run). If it holds up (or improves), that's real out-of-sample evidence. If it craters or goes negative, the +635.31 was likely overfit to that specific historical stretch.
-   - Also watch kill-switch trip rate on the new windows — a jump there is a risk signal independent of PnL.
-2. Re-run poly15m-calibrate as a dry run (no --write) on the larger dataset. Compare the new effective-slope table and overstatement bands to what you saw before. Similar numbers = the bias is a stable market feature, not sampling noise. Big drift = don't trust it yet, and definitely don't use it to declare readiness.
-3. Re-run poly15m-sweep on the larger dataset to see if kelly_fraction=0.1, min_edge_to_trade=0.05, uncertainty_buffer_base=0.05 is still the winner (or close to it). The same combo winning again on more data is much stronger evidence than winning once on 429 windows.
-4. Only then consider poly15m-calibrate --write again to roll train_end_ts forward — but understand that once you do, everything up to the new cutoff becomes in-sample again, so you lose the clean out-of-sample check until yet more new data accumulates. Don't rewrite calibration and then immediately declare the backtest "validated" — that's circular.
-
-The pattern is: freeze what you're testing, accumulate data that pipeline hasn't seen, then check if the delta still looks good — repeat until the config survives a couple of independent rounds before trusting it live.
-
-✻ Brewed for 42s
 

@@ -1,0 +1,7 @@
+Windows replayed: 718
+Gross PnL:        +734.56
+Fees paid:        163.15
+Net after fees:   +571.41
+Daily PnL (last day tracked): -38.98
+Kill switch trips (daily loss limit breached): 6
+Kill switch active at end of replay: True

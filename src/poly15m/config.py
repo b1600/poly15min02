@@ -69,7 +69,7 @@ class Settings(BaseSettings):
     uncertainty_final_minute_seconds: float = 60.0
     uncertainty_final_minute_extra: float = 0.05  # added on top, ramping in over the final minute
     sim_fill_ratio: float = 0.9  # haircut on walked size, modeling competing order flow
-    min_edge_to_trade: float = 0.02  # required net_edge (probability units) before paper-trading it
+    min_edge_to_trade: float = 0.05  # required net_edge (probability units) before paper-trading it
     # Shares per simulated order. This is *also* the size the book is
     # walked for when pricing an edge, so it must sit above the Kelly
     # stake it is meant to bound -- otherwise it silently becomes the
