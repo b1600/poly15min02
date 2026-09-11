@@ -1,0 +1,56 @@
+Loaded 654063 (deviation, outcome) sample(s) from var/poly15m.db.
+
+Train rows: 457844 (790 windows)   Test rows: 196219 (295 windows)
+Analytic model   (Phi(deviation))   log-loss: 0.5051
+Calibrated model (time-varying)     log-loss: 0.4825
+Calibration beats the analytic model out-of-sample (delta=+0.0225).
+
+Effective slope on `deviation` (analytic is a flat 1.702):
+     15s left: 0.740   (2.30x overconfident)
+     60s left: 0.873   (1.95x overconfident)
+    300s left: 1.027   (1.66x overconfident)
+    900s left: 1.132   (1.50x overconfident)
+
+ANALYTIC -- predicted vs actually realised P(up), out-of-sample:
+           band    ticks  windows    pred    real  side    over    rel      z
+  [0.00,0.02)   23,386      169   0.003   0.037  down  +0.034    3%   2.33  <-- overpays
+  [0.02,0.05)    6,520      173   0.034   0.107  down  +0.073    8%   3.11  <-- overpays
+  [0.05,0.10)    7,472      184   0.074   0.140  down  +0.066    7%   2.58  <-- overpays
+  [0.10,0.15)    6,536      189   0.125   0.187  down  +0.062    7%   2.17  <-- overpays
+  [0.15,0.20)    6,254      202   0.175   0.242  down  +0.067    8%   2.24  <-- overpays
+  [0.20,0.25)    6,752      210   0.226   0.311  down  +0.085   11%   2.67  <-- overpays
+  [0.25,0.35)   15,674      236   0.300   0.328  down  +0.028    4%   0.91
+  [0.35,0.50)   28,062      277   0.428   0.434  down  +0.006    1%   0.19
+  [0.50,0.65)   28,530      292   0.567   0.560    up  +0.007    1%   0.24
+  [0.65,0.75)   13,459      228   0.699   0.635    up  +0.063    9%   1.98
+  [0.75,0.80)    6,016      196   0.775   0.690    up  +0.085   11%   2.57  <-- overpays
+  [0.80,0.85)    5,938      193   0.825   0.719    up  +0.106   13%   3.29  <-- overpays
+  [0.85,0.90)    6,580      189   0.875   0.800    up  +0.076    9%   2.60  <-- overpays
+  [0.90,0.95)    7,503      182   0.926   0.852    up  +0.073    8%   2.79  <-- overpays
+  [0.95,0.98)    5,790      166   0.966   0.886    up  +0.080    8%   3.26  <-- overpays
+  [0.98,1.00)   18,497      158   0.997   0.978    up  +0.018    2%   1.58
+
+CALIBRATED -- predicted vs actually realised P(up), out-of-sample:
+           band    ticks  windows    pred    real  side    over    rel      z
+  [0.00,0.02)    9,854      136   0.005   0.008  down  +0.002    0%   0.32
+  [0.02,0.05)    4,921      141   0.035   0.028    up  +0.007   19%   0.47
+  [0.05,0.10)    7,889      161   0.074   0.072    up  +0.002    3%   0.10
+  [0.10,0.15)    7,158      168   0.126   0.106    up  +0.019   15%   0.81
+  [0.15,0.20)    7,315      183   0.175   0.140    up  +0.035   20%   1.36
+  [0.20,0.25)    7,605      190   0.225   0.191    up  +0.034   15%   1.21
+  [0.25,0.35)   18,414      221   0.303   0.291    up  +0.012    4%   0.40
+  [0.35,0.50)   39,399      273   0.430   0.415    up  +0.014    3%   0.48
+  [0.50,0.65)   37,468      293   0.566   0.584  down  +0.018    4%   0.63
+  [0.65,0.75)   16,171      211   0.698   0.700  down  +0.001    0%   0.05
+  [0.75,0.80)    7,387      188   0.775   0.815  down  +0.040   18%   1.43
+  [0.80,0.85)    6,764      172   0.824   0.867  down  +0.043   24%   1.65
+  [0.85,0.90)    6,079      159   0.875   0.900  down  +0.025   20%   1.05
+  [0.90,0.95)    6,039      144   0.926   0.964  down  +0.038   51%   2.43  <-- overpays
+  [0.95,0.98)    4,690      124   0.966   0.989  down  +0.024   68%   2.53
+  [0.98,1.00)    9,066      130   0.994   0.999  down  +0.005   88%   2.22
+
+Bands overpricing a token materially (>0.025) and significantly (z>2.0):  analytic 11, calibrated 1.
+('side' is the token the band overprices -- understating P(up) by d overstates P(down) by d, and the strategy buys both.)
+(z is in window-clustered standard errors -- ticks inside one window are not independent observations.)
+
+(dry run -- pass --write to persist these coefficients.)

@@ -41,7 +41,19 @@ class CalibrationDataset:
     condition_id: np.ndarray  # object array; rows from the same window are correlated, not i.i.d.
 
 
-DEFAULT_RELIABILITY_EDGES = (0.0, 0.02, 0.05, 0.10, 0.20, 0.35, 0.50, 0.65, 0.80, 0.90, 0.95, 0.98, 1.0)
+# Kept symmetric under p -> 1-p: the strategy buys both tokens, so every
+# band needs its mirror scored at the same resolution.
+#
+# The cheap end is deliberately finer than it looks like it needs to be.
+# A single [0.10,0.20) bucket averaged a well-calibrated [0.10,0.15) with
+# a [0.15,0.20) that overstated by +0.033 (z=2.4) on recorded data, and
+# reported the mean of the two as harmless. Bands are the unit of
+# detection here; a band wide enough to contain both a good and a bad
+# region cannot report the bad one.
+DEFAULT_RELIABILITY_EDGES = (
+    0.0, 0.02, 0.05, 0.10, 0.15, 0.20, 0.25, 0.35, 0.50,
+    0.65, 0.75, 0.80, 0.85, 0.90, 0.95, 0.98, 1.0,
+)
 
 
 @dataclass
@@ -79,6 +91,50 @@ class ReliabilityBucket:
     def z(self) -> float:
         """Overstatement in standard errors. Positive and large = real."""
         return self.overstatement / self.std_error if self.std_error > 0 else 0.0
+
+    # -- both sides of the book -------------------------------------
+    # `overstatement` above is signed on the P(up) scale, which only ever
+    # describes the *up* token. The strategy buys either token, and
+    # P(down) = 1 - P(up), so a band that understates P(up) by d is a band
+    # that overstates P(down) by exactly d -- an equally overpaid trade,
+    # just on the other side. Scoring only the positive tail leaves half
+    # the book unchecked. The properties below score whichever side this
+    # band actually overprices.
+
+    @property
+    def overstated_side(self) -> str:
+        """The token this band overprices. Exactly one of the two is."""
+        return "up" if self.predicted >= self.realised else "down"
+
+    @property
+    def traded_overstatement(self) -> float:
+        """`overstatement` for the overstated side, so always >= 0."""
+        return abs(self.overstatement)
+
+    @property
+    def traded_z(self) -> float:
+        """`traded_overstatement` in clustered standard errors.
+
+        `std_error` is invariant under p -> 1-p (p(1-p) is symmetric), so
+        the down side inherits the up side's error bar unchanged.
+        """
+        return abs(self.z)
+
+    @property
+    def overstated_side_predicted(self) -> float:
+        """What the model claims the overstated side is worth -- i.e. the
+        most the strategy would pay for it before any edge requirement."""
+        return self.predicted if self.overstated_side == "up" else 1.0 - self.predicted
+
+    @property
+    def relative_overstatement(self) -> float:
+        """Overstatement as a fraction of the overstated side's price.
+        Reported, not gated on: whether a trade is +EV turns on the
+        absolute overstatement against the required edge, not this. It is
+        still the honest way to read a cheap band -- +0.038 on a token the
+        model prices at 0.074 is a 51% error, not a rounding one."""
+        p = self.overstated_side_predicted
+        return self.traded_overstatement / p if p > 0 else float("inf")
 
 
 def reliability(
@@ -121,8 +177,8 @@ class CalibrationReport:
     deviation_clip: float
 
     def failing_bands(self, max_overstatement: float, min_z: float = 2.0) -> list[ReliabilityBucket]:
-        """Bands where the fit overstates P(up) both *materially* (beyond
-        `max_overstatement`, so it would actually cost money) and
+        """Bands where the fit overprices *either* token both *materially*
+        (beyond `max_overstatement`, so it would actually cost money) and
         *significantly* (beyond `min_z` clustered standard errors, so it is
         not just this sample's base rate wandering).
 
@@ -131,8 +187,16 @@ class CalibrationReport:
         training one purely by chance, which shows up as a uniform positive
         overstatement in every band. Significance alone would reject
         economically irrelevant errors once the dataset grows.
+
+        Tested on `traded_overstatement`, not `overstatement`: the signed
+        version only ever catches an overpriced *up* token, and the
+        strategy buys both. See `ReliabilityBucket.overstated_side`.
         """
-        return [b for b in self.reliability if b.overstatement > max_overstatement and b.z > min_z]
+        return [
+            b
+            for b in self.reliability
+            if b.traded_overstatement > max_overstatement and b.traded_z > min_z
+        ]
 
 
 def load_calibration_dataset(db_path: str | Path) -> CalibrationDataset:

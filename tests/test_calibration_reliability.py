@@ -77,3 +77,38 @@ def test_overstatement_sign_convention():
     under = ReliabilityBucket(lo=0.8, hi=0.9, n=100, n_windows=50, predicted=0.85, realised=0.95)
     assert under.overstatement < 0
     assert under.z < 0
+
+
+def test_understating_p_up_is_overstating_p_down():
+    """The bot buys either token. A band claiming P(up)=0.85 where reality
+    delivered 0.95 prices the *down* token at 0.15 when it is worth 0.05 --
+    a 0.10 overpayment that the signed P(up) view reports as negative."""
+    b = ReliabilityBucket(lo=0.8, hi=0.9, n=100, n_windows=50, predicted=0.85, realised=0.95)
+    assert b.overstatement < 0  # invisible to a one-sided check...
+    assert b.overstated_side == "down"
+    assert b.traded_overstatement == pytest.approx(0.10)
+    assert b.overstated_side_predicted == pytest.approx(0.15)
+    assert b.relative_overstatement == pytest.approx(0.10 / 0.15)
+    assert b.traded_z == abs(b.z) > 0
+
+
+def test_relative_overstatement_scales_with_how_cheap_the_side_is():
+    """The same absolute miss is a rounding error on a 0.85 token and a
+    coin-flip's worth of error on a 0.07 one."""
+    dear = ReliabilityBucket(lo=0.8, hi=0.9, n=100, n_windows=50, predicted=0.85, realised=0.81)
+    cheap = ReliabilityBucket(lo=0.05, hi=0.10, n=100, n_windows=50, predicted=0.07, realised=0.03)
+    assert dear.traded_overstatement == pytest.approx(cheap.traded_overstatement)
+    assert dear.relative_overstatement < 0.05
+    assert cheap.relative_overstatement > 0.5
+
+
+def test_cheap_bands_are_narrow_enough_to_isolate_a_bad_one():
+    """A band spanning a calibrated region and a broken one reports their
+    average, so the cheap end has to be cut finely enough that a bad
+    sub-band cannot hide inside a good parent."""
+    from poly15m.calibration.fit import DEFAULT_RELIABILITY_EDGES as edges
+
+    assert 0.15 in edges and 0.25 in edges, "cheap end too coarse to localise a failure"
+    # Every band must have its mirror, or one token is scored at coarser
+    # resolution than the other.
+    assert {round(1.0 - e, 10) for e in edges} == set(edges)

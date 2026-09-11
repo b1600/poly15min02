@@ -4,15 +4,18 @@ Given where things stand now — corrected backtest done, and all three checks a
 
 1. Don't write calibration yet
 
-Leave var/calibration.json as-is (frozen at Sep 4, train_end_ts unchanged). None of the three checks passed cleanly enough to justify rolling the cutoff forward. Writing now would make the current out-of-sample window in-sample again, and you'd lose the ability to tell whether the next candidate actually generalizes.
+Leave var/calibration.json as-is (frozen at Sep 4, train_end_ts unchanged). 
+None of the three checks passed cleanly enough to justify rolling the cutoff forward. 
+Writing now would make the current out-of-sample window in-sample again, 
+and you'd lose the ability to tell whether the next candidate actually generalizes.
 
-2. Switch your working candidate to the sweep's new leader
-
-kelly=0.05, min_edge_to_trade=0.05, uncertainty_buffer_base=0.05 won the 718-window sweep (+937.56, beating the old 0.1/0.05/0.05 by 32%). Treat this as the new hypothesis to test — not yet as validated truth, since it was chosen on this data, not tested against data it hadn't seen.
+2. Switch your working candidate to the sweep's new leader kelly=0.05, min_edge_to_trade=0.05, uncertainty_buffer_base=0.05 won the 718-window sweep (+937.56, beating the old 0.1/0.05/0.05 by 32%). 
+Treat this as the new hypothesis to test — not yet as validated truth, since it was chosen on this data, not tested against data it hadn't seen.
 
 3. Let live/paper trading keep running to accumulate a fresh, untouched batch
 
-Whatever is currently recording windows (paper trading / poly15m-record) should keep running undisturbed. You need a new chunk of windows that neither the calibration fit nor this sweep/backtest round has seen — the same discipline that made this round's check meaningful.
+Whatever is currently recording windows (paper trading / poly15m-record) should keep running undisturbed. 
+You need a new chunk of windows that neither the calibration fit nor this sweep/backtest round has seen — the same discipline that made this round's check meaningful.
 
 4. When that new batch is meaningful, repeat the same three-step check — this time on the new candidate
 

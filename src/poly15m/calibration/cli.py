@@ -13,9 +13,20 @@ from ..logging_setup import setup_logging
 from ..pricing.fair_value import ANALYTIC_LOGIT_SLOPE, Calibration
 from .fit import fit_calibration, load_calibration_dataset
 
-# Max tolerated overstatement of P(up) in any probability band before a
-# fit is considered unsafe to trade, regardless of its average log-loss.
-MAX_OVERSTATEMENT = 0.05
+# Max tolerated overstatement of *either* token in any probability band
+# before a fit is considered unsafe to trade, regardless of its average
+# log-loss.
+#
+# A trade's EV per share is `required_edge - overstatement`: the strategy
+# only buys at `fair_value - min_edge_to_trade - fees - buffers`, so an
+# overstatement smaller than the edge it demands still clears. That makes
+# `min_edge_to_trade` the only meaningful yardstick for this threshold --
+# and it must be a *fraction* of it, not all of it. The previous flat 0.05
+# was exactly `min_edge_to_trade`, so a fit sitting just inside the gate
+# had 100% of its edge eaten by model error and was waved through as safe.
+# Half leaves the edge half intact.
+EDGE_MARGIN_FRACTION = 0.5
+MAX_OVERSTATEMENT = EDGE_MARGIN_FRACTION * settings.min_edge_to_trade
 # Overstatement must also clear this many window-clustered standard errors
 # before it counts as evidence rather than sampling noise.
 MIN_Z = 2.0
@@ -76,22 +87,29 @@ def main() -> None:
 
     def show(label, buckets):
         print(f"\n{label} -- predicted vs actually realised P(up), out-of-sample:")
-        print(f"  {'band':>13} {'ticks':>8} {'windows':>8} {'pred':>7} {'real':>7} {'over':>8} {'z':>6}")
+        print(f"  {'band':>13} {'ticks':>8} {'windows':>8} {'pred':>7} {'real':>7} "
+              f"{'side':>5} {'over':>7} {'rel':>6} {'z':>6}")
         for b in buckets:
-            flag = "  <-- overpays" if (b.overstatement > MAX_OVERSTATEMENT and b.z > MIN_Z) else ""
+            bad = b.traded_overstatement > MAX_OVERSTATEMENT and b.traded_z > MIN_Z
             print(
                 f"  [{b.lo:.2f},{b.hi:.2f}) {b.n:>8,} {b.n_windows:>8} {b.predicted:>7.3f} "
-                f"{b.realised:>7.3f} {b.overstatement:>+8.3f} {b.z:>6.2f}{flag}"
+                f"{b.realised:>7.3f} {b.overstated_side:>5} {b.traded_overstatement:>+7.3f} "
+                f"{b.relative_overstatement:>5.0%} {b.traded_z:>6.2f}"
+                f"{'  <-- overpays' if bad else ''}"
             )
 
     show("ANALYTIC", report.analytic_reliability)
     show("CALIBRATED", report.reliability)
     analytic_bad = [
-        b for b in report.analytic_reliability if b.overstatement > MAX_OVERSTATEMENT and b.z > MIN_Z
+        b
+        for b in report.analytic_reliability
+        if b.traded_overstatement > MAX_OVERSTATEMENT and b.traded_z > MIN_Z
     ]
     failing = report.failing_bands(MAX_OVERSTATEMENT, MIN_Z)
-    print(f"\nBands overstating materially and significantly:  analytic {len(analytic_bad)}, "
-          f"calibrated {len(failing)}.")
+    print(f"\nBands overpricing a token materially (>{MAX_OVERSTATEMENT:.3f}) and significantly "
+          f"(z>{MIN_Z:.1f}):  analytic {len(analytic_bad)}, calibrated {len(failing)}.")
+    print("('side' is the token the band overprices -- understating P(up) by d overstates "
+          "P(down) by d, and the strategy buys both.)")
     print("(z is in window-clustered standard errors -- ticks inside one window are not "
           "independent observations.)")
 
@@ -102,10 +120,14 @@ def main() -> None:
         print("\nRefusing to write: this fit does not beat the analytic model out-of-sample.")
         return
     if failing:
-        worst = max(failing, key=lambda b: b.overstatement)
+        worst = max(failing, key=lambda b: b.traded_overstatement)
         print(
-            f"\nRefusing to write: overstates P(up) by {worst.overstatement:+.3f} "
-            f"(z={worst.z:.2f}) in band [{worst.lo:.2f},{worst.hi:.2f}), despite better log-loss. "
+            f"\nRefusing to write: overprices the '{worst.overstated_side}' token by "
+            f"{worst.traded_overstatement:+.3f} ({worst.relative_overstatement:.0%} of its "
+            f"{worst.overstated_side_predicted:.3f} fair value, z={worst.traded_z:.2f}) in band "
+            f"[{worst.lo:.2f},{worst.hi:.2f}), despite better log-loss. That error would consume "
+            f"{worst.traded_overstatement / settings.min_edge_to_trade:.0%} of the "
+            f"{settings.min_edge_to_trade:.3f} edge the strategy demands before trading. "
             "An overstated probability is an overpaid trade."
         )
         return
