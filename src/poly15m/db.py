@@ -323,6 +323,18 @@ class Database:
         )
         self._dirty = True
 
+    def recent_kill_switch_trip_ts(self, since_ts: float) -> list[float]:
+        """Timestamps of `kill_switch_triggered` events at or after
+        `since_ts`. `RiskGate` reloads these on startup so the hard-halt
+        escalation survives a process restart -- restarting after a kill
+        was the operator's actual habit, and an escalation a restart
+        clears is no escalation at all."""
+        rows = self._conn.execute(
+            "SELECT ts FROM lifecycle_events WHERE event = 'kill_switch_triggered' AND ts >= ? ORDER BY ts",
+            (since_ts,),
+        ).fetchall()
+        return [r[0] for r in rows]
+
     def insert_order(
         self,
         condition_id: str,

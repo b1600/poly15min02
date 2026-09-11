@@ -8,24 +8,43 @@ position).
 
 Enforces, in order:
   1. Kill switch -- if active, reject everything. Set by a breached daily
-     loss limit; does not clear itself, including across a day rollover,
-     by design (an automatic loss limit that silently un-halts itself at
-     midnight is a foot-gun, not a safety feature). `reset_kill_switch_for_new_day`
-     is the one deliberate exception: it exists solely for
-     `backtest/engine.py` to call once per simulated UTC day, approximating
-     what continued live operation would actually look like (an operator
-     investigating and re-arming the bot the next trading day) across a
-     multi-day historical replay -- nothing in the live/paper trading path
-     calls it, so live behavior is unchanged.
-  2. End-of-window handling (item 21): no *new* directional risk in the
+     loss limit. It used to latch forever, on the argument that a loss
+     limit which silently un-halts itself at midnight is a foot-gun. In
+     practice (2026-09-03..11) it tripped eleven times in nine days and
+     the operator simply restarted the process each time, so the limit
+     protected nothing while truncating every trading day. It now
+     re-arms at the UTC day boundary when `kill_switch_auto_rearm` is
+     set -- the honest version of what was already happening by hand --
+     with a *hard halt* that a restart cannot clear once it trips on
+     `kill_switch_hard_halt_trips` distinct days inside
+     `kill_switch_hard_halt_window_days`. That escalation is the part
+     that actually detects a broken model: at a ~5%/day false-alarm
+     rate, two trips in three days is p ~ 0.007.
+     `reset_kill_switch_for_new_day` remains for `backtest/engine.py`,
+     which constructs its gate with auto re-arm disabled and drives the
+     day rollover itself over simulated time.
+  2. Daily loss *budget*, counting open risk (not just realized PnL).
+     `record_realized_pnl` only sees a window at resolution, so the old
+     gate was blind to positions already in flight: every breach
+     overshot the limit, by an average of $7 on a $25 limit (-31.14,
+     -27.49, -31.82, -25.14, -37.76, -38.12, -25.78, -41.33, -36.72,
+     -37.43, -30.58). A single resolution took the day from inside the
+     budget to well past it. So new *directional* risk is refused once
+     realized PnL plus the worst case on everything currently open plus
+     this intent's own cost would breach the limit. This is a brake, not
+     a latch -- it blocks a trade without halting the bot, since the
+     projected loss is hypothetical until it resolves. Matched-arb and
+     hedge-fulfillment intents are exempt for the same reason they are
+     exempt from the end-of-window gate: they reduce risk.
+  3. End-of-window handling (item 21): no *new* directional risk in the
      final `end_of_window_seconds`, unless deviation is many sigma (a
      near-certain outcome), in which case a small tail-risk-capped bet is
      still allowed. Matched-arb and hedge-fulfillment trades are exempt --
      both reduce risk (lock in a riskless pair, or complete an existing
      hedge) rather than add it, which is fine right up to resolution.
-  3. Per-market cumulative notional cap.
-  4. Per-market inventory imbalance cap.
-  5. Portfolio-wide net directional exposure cap (sum of |imbalance|
+  4. Per-market cumulative notional cap.
+  5. Per-market inventory imbalance cap.
+  6. Portfolio-wide net directional exposure cap (sum of |imbalance|
      across every currently-open market -- uncorrelated directional bets
      in different windows don't net against each other, so this sums
      absolute values, not signed ones).
@@ -70,6 +89,30 @@ class RiskGate:
         self._kill_switch_active: bool = False
         self._kill_switch_reason: str | None = None
         self._kill_switch_trigger_count: int = 0
+        self._hard_halted: bool = False
+        self._trip_dates: list[date] = self._load_trip_dates()
+
+    def _load_trip_dates(self) -> list[date]:
+        """Rebuild recent trip history from the event log. Without this the
+        hard-halt escalation lives only in memory, and `pkill && restart`
+        -- the exact reflex it exists to catch -- wipes it clean."""
+        if not self.settings.kill_switch_auto_rearm:
+            return []
+        window = self.settings.kill_switch_hard_halt_window_days
+        since = time.time() - window * 86400
+        try:
+            tss = self.db.recent_kill_switch_trip_ts(since)
+        except Exception:  # a DB without the table (or a stub in tests) must not block startup
+            logger.warning("kill_switch_trip_history_unavailable", exc_info=True)
+            return []
+        seen: list[date] = []
+        for ts in tss:
+            d = datetime.fromtimestamp(ts, tz=timezone.utc).date()
+            if d not in seen:
+                seen.append(d)
+        if seen:
+            logger.warning("kill_switch_trip_history_loaded", extra={"trips": [d.isoformat() for d in seen]})
+        return seen
 
     @property
     def kill_switch_active(self) -> bool:
@@ -80,18 +123,88 @@ class RiskGate:
         return self._kill_switch_trigger_count
 
     @property
+    def hard_halted(self) -> bool:
+        """Tripped too often in too few days. Never auto-re-arms; a human
+        has to look at why the model is losing and restart deliberately."""
+        return self._hard_halted
+
+    @property
     def daily_pnl(self) -> float:
         return self._daily_pnl
 
-    def trigger_kill_switch(self, reason: str) -> None:
+    def trigger_kill_switch(self, reason: str, ts: float | None = None) -> None:
         if self._kill_switch_active:
             return
+        ts = ts if ts is not None else time.time()
         self._kill_switch_active = True
         self._kill_switch_reason = reason
         self._kill_switch_trigger_count += 1
+        trip_date = datetime.fromtimestamp(ts, tz=timezone.utc).date()
+        if trip_date not in self._trip_dates:
+            self._trip_dates.append(trip_date)
         logger.critical("kill_switch_triggered", extra={"reason": reason, "daily_pnl": round(self._daily_pnl, 2)})
         self.db.insert_lifecycle_event(
-            GLOBAL_SENTINEL, "kill_switch_triggered", time.time(), {"reason": reason}
+            GLOBAL_SENTINEL, "kill_switch_triggered", ts, {"reason": reason}
+        )
+        if self.settings.kill_switch_auto_rearm and self._too_many_recent_trips(trip_date):
+            self._enter_hard_halt(ts, trip_date)
+
+    def _maybe_rearm(self, ts: float) -> None:
+        """Re-arm at the UTC day boundary, or escalate to a hard halt if
+        the switch has tripped on too many days recently. No-op unless
+        `kill_switch_auto_rearm` is set -- `backtest/engine.py` disables
+        it and drives the rollover itself over simulated time."""
+        if self._hard_halted:
+            return
+        if not self.settings.kill_switch_auto_rearm:
+            return
+        today = datetime.fromtimestamp(ts, tz=timezone.utc).date()
+        # Checked even when the switch is not currently active: a restart
+        # comes up armed with an empty daily PnL but a reloaded trip
+        # history, and must re-halt itself rather than trade on.
+        if self._too_many_recent_trips(today):
+            self._enter_hard_halt(ts, today)
+            return
+        if not self._kill_switch_active:
+            return
+        if not self._trip_dates or today <= self._trip_dates[-1]:
+            return  # still the day it tripped on
+
+        logger.warning("kill_switch_rearmed", extra={"prior_reason": self._kill_switch_reason})
+        self.db.insert_lifecycle_event(
+            GLOBAL_SENTINEL, "kill_switch_rearmed", ts, {"prior_reason": self._kill_switch_reason}
+        )
+        self._kill_switch_active = False
+        self._kill_switch_reason = None
+        self._daily_pnl = 0.0  # new day, new budget
+
+    def _recent_trips(self, today: date) -> list[date]:
+        window = self.settings.kill_switch_hard_halt_window_days
+        return [d for d in self._trip_dates if 0 <= (today - d).days < window]
+
+    def _too_many_recent_trips(self, today: date) -> bool:
+        return len(self._recent_trips(today)) >= self.settings.kill_switch_hard_halt_trips
+
+    def _enter_hard_halt(self, ts: float, today: date) -> None:
+        recent = self._recent_trips(today)
+        self._hard_halted = True
+        self._kill_switch_active = True
+        self._kill_switch_reason = f"hard_halt: {len(recent)} trips in {self.settings.kill_switch_hard_halt_window_days}d"
+        logger.critical(
+            "kill_switch_hard_halt",
+            extra={
+                "trips": [d.isoformat() for d in recent],
+                "window_days": self.settings.kill_switch_hard_halt_window_days,
+            },
+        )
+        self.db.insert_lifecycle_event(
+            GLOBAL_SENTINEL,
+            "kill_switch_hard_halt",
+            ts,
+            {
+                "trips": [d.isoformat() for d in recent],
+                "window_days": self.settings.kill_switch_hard_halt_window_days,
+            },
         )
 
     def reset_kill_switch_for_new_day(self) -> None:
@@ -104,13 +217,15 @@ class RiskGate:
         )
         self._kill_switch_active = False
         self._kill_switch_reason = None
+        self._daily_pnl = 0.0  # new day, new budget -- see _maybe_rearm
 
     def record_realized_pnl(self, pnl: float, ts: float | None = None) -> None:
         ts = ts if ts is not None else time.time()
+        self._maybe_rearm(ts)
         self._maybe_reset_daily(ts)
         self._daily_pnl += pnl
         if self._daily_pnl <= -abs(self.settings.daily_loss_limit):
-            self.trigger_kill_switch(f"daily_loss_limit_breached: {self._daily_pnl:.2f}")
+            self.trigger_kill_switch(f"daily_loss_limit_breached: {self._daily_pnl:.2f}", ts=ts)
 
     def _maybe_reset_daily(self, ts: float) -> None:
         today = datetime.fromtimestamp(ts, tz=timezone.utc).date()
@@ -129,13 +244,51 @@ class RiskGate:
     def drop_market(self, condition_id: str) -> None:
         self._notional_spent.pop(condition_id, None)
 
+    def worst_case_open_loss(self, position_manager: PositionManager) -> float:
+        """Largest loss still possible from inventory already held, summed
+        over open markets. Never positive: a market that is locked in
+        profitable (a completed matched pair) contributes 0 rather than a
+        credit, so unrealized gains can't be spent as risk budget.
+
+        Per market the two outcomes pay `up.size` or `down.size`, so the
+        worst case pays `min(up.size, down.size)` -- the matched portion,
+        which settles at $1/share either way."""
+        total = 0.0
+        for inv in position_manager.inventory.values():
+            guaranteed_payout = min(inv.up.size, inv.down.size)
+            cost_basis = inv.up.cost_basis + inv.down.cost_basis
+            total += min(0.0, guaranteed_payout - cost_basis)
+        return total
+
+    def projected_daily_pnl(self, position_manager: PositionManager) -> float:
+        """Where today ends up if every open position resolves against us.
+        This is what the daily loss limit is actually about -- `daily_pnl`
+        alone lags by up to a full window."""
+        return self._daily_pnl + self.worst_case_open_loss(position_manager)
+
+    def _within_daily_loss_budget(
+        self, position_manager: PositionManager, intent: TradeIntent
+    ) -> bool:
+        # Risk-reducing intents are exempt: a matched pair or a hedge
+        # completion shrinks the worst case rather than growing it, and
+        # refusing them near the limit would strand exactly the positions
+        # most in need of closing.
+        if intent.reason != "directional_kelly":
+            return True
+        projected = self.projected_daily_pnl(position_manager) - intent.size * intent.limit_price
+        return projected > -abs(self.settings.daily_loss_limit)
+
     def check_intent(
         self,
         intent: TradeIntent,
         position_manager: PositionManager,
         t_remaining: float,
         deviation: float | None,
+        ts: float | None = None,
     ) -> TradeIntent | None:
+        ts = ts if ts is not None else time.time()
+        self._maybe_rearm(ts)
+        self._maybe_reset_daily(ts)
         if self._kill_switch_active:
             return None
 
@@ -152,6 +305,11 @@ class RiskGate:
         if not self._within_imbalance_cap(inv, intent):
             return None
         if not self._within_portfolio_cap(position_manager, inv, intent):
+            return None
+        # Last, so it sees the final size after every cap has scaled the
+        # intent down -- a trade that doesn't fit at full size may fit
+        # after clipping.
+        if not self._within_daily_loss_budget(position_manager, intent):
             return None
 
         spent = self._notional_spent.get(intent.condition_id, 0.0)

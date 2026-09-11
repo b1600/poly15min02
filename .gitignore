@@ -11,3 +11,5 @@ var/*.db-wal
 var/*.db-shm
 .pytest_cache/
 *.tar.gz
+20260911/
+*.sql.gz

@@ -165,7 +165,9 @@ class PaperTrader:
             self._last_traded_book_ts[market.condition_id] = latest_book_ts
 
         for intent in intents:
-            intent = self.risk_gate.check_intent(intent, self.position_manager, snapshot.t_remaining, snapshot.deviation)
+            intent = self.risk_gate.check_intent(
+                intent, self.position_manager, snapshot.t_remaining, snapshot.deviation, ts=now
+            )
             if intent is None:
                 continue
             asks = asks_up if intent.outcome == "up" else asks_down

@@ -87,7 +87,13 @@ class BacktestEngine:
         self.tracker = WindowTracker(self.db, self.binance_feed, self.clob_feed)
         self.feature_engine = FeatureEngine(settings, self.binance_feed, self.clob_feed)
         self.position_manager = PositionManager(settings)
-        self.risk_gate = RiskGate(settings, self.db)
+        # A replay drives its own day rollover via
+        # reset_kill_switch_for_new_day() below. Auto re-arm would work
+        # here too (decision timestamps are replayed, not wall-clock), but
+        # it also brings the hard-halt escalation, which would silently
+        # change what every existing sweep result means. Replays keep the
+        # old semantics; live/paper get the new ones.
+        self.risk_gate = RiskGate(settings.model_copy(update={"kill_switch_auto_rearm": False}), self.db)
         self.executor = PaperExecutor(self.db, settings)
         self.trader = PaperTrader(
             self.db,

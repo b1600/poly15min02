@@ -37,8 +37,12 @@ def test_detects_the_original_broken_configuration():
 
 
 def test_raising_kelly_fraction_without_caps_reintroduces_the_bug():
-    assert kelly_headroom(Settings(kelly_fraction=0.05), 0.5) < 1.0
-    assert kelly_headroom(Settings(kelly_fraction=0.50), 0.5) > 1.0
+    # read the default rather than hardcoding it: kelly_fraction and
+    # max_notional_per_market have to move together, and pinning one of
+    # them here made this test fail the next time they did
+    default = Settings().kelly_fraction
+    assert kelly_headroom(Settings(kelly_fraction=default), 0.5) < 1.0
+    assert kelly_headroom(Settings(kelly_fraction=default * 10), 0.5) > 1.0
 
 
 def test_headroom_scales_linearly_with_kelly_fraction():

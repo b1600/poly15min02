@@ -74,8 +74,11 @@ class Settings(BaseSettings):
     # walked for when pricing an edge, so it must sit above the Kelly
     # stake it is meant to bound -- otherwise it silently becomes the
     # sizer and `kelly_fraction` stops doing anything (see
-    # positions/manager.kelly_headroom).
-    paper_trade_size: float = 60.0
+    # positions/manager.kelly_headroom). It must also track
+    # `max_notional_per_market`: walking the book for far more size than
+    # the cap will ever let us buy prices a fill we would never take, and
+    # the resulting pessimistic VWAP silently suppresses trades.
+    paper_trade_size: float = 20.0
     paper_max_position_per_market: float = 100.0  # shares per side, per market
     paper_min_order_size: float = 5.0  # matches Polymarket's live orderMinSize; also stops cap-tail dust orders
 
@@ -127,13 +130,39 @@ class Settings(BaseSettings):
 
     # --- risk limits (Phase 5 gate; declared now so they live in one
     # place from day one) -----------------------------------------------
+    # Sizing and the daily loss limit are ONE decision, not two. Setting
+    # them independently is what produced the 2026-09-11 failure: eleven
+    # `daily_loss_limit_breached` kill switches in nine days, three of
+    # them on 2026-09-11 alone, one after only two trades.
+    #
+    # Measured over 387 resolved markets (2026-09-03..11): per-market PnL
+    # mean +$0.91, sd $15.02, worst single market -$18.87, and 20% of
+    # markets lose more than $15. Against a $25 limit that is a budget
+    # 1.3 trades deep -- a two-strike rule, not a daily loss limit. The
+    # projected 96-window day was mu +$88 / sigma $147, so the stop sat
+    # 0.17 sigma below zero and tripped on ~70% of days *while the
+    # strategy was profitable*.
+    #
+    # The rule: the limit must be many multiples of the worst plausible
+    # single-market loss, which `max_notional_per_market` sets directly.
+    # At a $6 cap the worst market is -$6.73 and the limit is ~15 trades
+    # deep, tripping ~5% of days. Note the exchange's 5-share
+    # `paper_min_order_size` floors how small this can go at all: even
+    # with every order at the minimum, day sigma is $35.7 and the
+    # smallest 5%-false-alarm limit is $54. A $25/day limit is not
+    # reachable by any configuration -- if you want one, the bankroll has
+    # to be ~$2,200, not $1,000.
+    #
     # Fractional Kelly. Deliberately small: sized so the Kelly stake lands
     # *under* max_notional_per_market rather than being clipped by it, and
     # because full Kelly on a fair-value model measured at ~3x overconfident
     # would be ruinous. Raising this without raising the caps re-creates the
-    # inert-Kelly bug -- kelly_headroom() will tell you.
-    kelly_fraction: float = 0.05
-    max_notional_per_market: float = 20.0
+    # inert-Kelly bug -- kelly_headroom() will tell you. Conversely,
+    # cutting the cap without cutting this re-creates it from the other
+    # side: these two were divided by the same 3.33 so headroom is
+    # unchanged at every price (0.24/0.35/0.57 at p=0.3/0.5/0.7).
+    kelly_fraction: float = 0.015
+    max_notional_per_market: float = 6.0
     # Both are *share* counts, not dollars. They exist to stop lopsided
     # directional books, not to bound capital -- max_notional_per_market
     # does that, and still binds first at any realistic price. They were
@@ -141,10 +170,27 @@ class Settings(BaseSettings):
     # which is what made kelly_fraction inert; sized here to sit above a
     # typical stake so the notional cap is the constraint that actually
     # governs risk.
-    max_net_directional_exposure: float = 150.0
-    max_inventory_imbalance: float = 60.0
-    daily_loss_limit: float = 25.0
+    max_net_directional_exposure: float = 60.0
+    max_inventory_imbalance: float = 25.0
+    daily_loss_limit: float = 100.0
     feed_staleness_seconds: float = 5.0
+
+    # --- kill-switch behaviour -------------------------------------------
+    # Re-arm the kill switch at the UTC day boundary instead of latching
+    # forever. The module docstring in risk/limits.py used to argue that a
+    # self-clearing loss limit is a foot-gun, and a *bare* one is. What
+    # actually happened is worse: the switch latched, the operator
+    # restarted the process, and the limit provided no protection at all
+    # while still truncating every trading day. Auto re-arm plus the
+    # escalation below is the honest version of what was already
+    # happening manually -- with a hard halt that a restart cannot clear.
+    kill_switch_auto_rearm: bool = True
+    # Hard halt (no auto re-arm; requires a human) once the switch trips
+    # on this many distinct UTC days inside the trailing window. At a ~5%
+    # per-day false-alarm rate, 2 trips in 3 days is p ~ 0.007 -- that is
+    # a broken model, not a losing streak.
+    kill_switch_hard_halt_trips: int = 2
+    kill_switch_hard_halt_window_days: int = 3
 
     def ensure_dirs(self) -> None:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
