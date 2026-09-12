@@ -335,6 +335,15 @@ class Database:
         ).fetchall()
         return [r[0] for r in rows]
 
+    def latest_operator_clear_ts(self) -> float | None:
+        """Most recent `kill_switch_operator_cleared` marker, if any --
+        trips at or before it are stale and must not count toward a new
+        hard-halt escalation. See `RiskGate.clear_hard_halt`."""
+        row = self._conn.execute(
+            "SELECT MAX(ts) FROM lifecycle_events WHERE event = 'kill_switch_operator_cleared'"
+        ).fetchone()
+        return row[0] if row and row[0] is not None else None
+
     def insert_order(
         self,
         condition_id: str,

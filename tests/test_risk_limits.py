@@ -137,6 +137,43 @@ def test_restart_after_a_single_trip_comes_up_armed():
     assert restarted.hard_halted is False
 
 
+def test_operator_clear_resets_hard_halt_immediately():
+    db = Database(":memory:")
+    settings = Settings(daily_loss_limit=25.0, max_notional_per_market=100.0)
+    gate = RiskGate(settings, db)
+    gate.record_realized_pnl(-30.0, ts=time.time() - 86400)
+    gate.record_realized_pnl(-30.0, ts=time.time())
+    assert gate.hard_halted is True
+
+    gate.clear_hard_halt("investigated -- stale losses from before a config fix")
+    pm = PositionManager(settings)
+    assert gate.hard_halted is False
+    assert gate.check_intent(make_intent(), pm, 500.0, 1.0) is not None
+
+
+def test_operator_clear_survives_restart_and_ignores_stale_trips():
+    db = Database(":memory:")
+    settings = Settings(daily_loss_limit=25.0, max_notional_per_market=100.0)
+    first = RiskGate(settings, db)
+    t0 = time.time() - 86400  # yesterday
+    t1 = time.time()  # today -- two distinct trip *days*, as the escalation requires
+    first.record_realized_pnl(-30.0, ts=t0)
+    first.record_realized_pnl(-30.0, ts=t1)
+    assert first.hard_halted is True
+
+    first.clear_hard_halt("acknowledged", ts=t1)
+
+    restarted = RiskGate(settings, db)
+    pm = PositionManager(settings)
+    assert restarted.hard_halted is False
+    assert restarted.check_intent(make_intent(), pm, 500.0, 1.0) is not None
+
+    # a trip *after* the clear still counts fresh
+    restarted.record_realized_pnl(-30.0, ts=time.time())
+    reloaded = RiskGate(settings, db)
+    assert reloaded.hard_halted is False  # only one trip since the clear
+
+
 def test_trip_history_is_ignored_when_auto_rearm_is_off():
     db = Database(":memory:")
     settings = Settings(daily_loss_limit=25.0, kill_switch_auto_rearm=False)

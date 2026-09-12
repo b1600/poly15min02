@@ -91,16 +91,33 @@ class RiskGate:
         self._kill_switch_trigger_count: int = 0
         self._hard_halted: bool = False
         self._trip_dates: list[date] = self._load_trip_dates()
+        # Evaluate immediately: reloaded history that already qualifies
+        # must show up in `hard_halted` (and get logged) from the moment
+        # of construction, not only once the first `check_intent` call
+        # happens to run -- an operator (or a tool like
+        # `poly15m-clear-halt`) reading state right after startup must see
+        # the same answer the trader is about to act on.
+        if self.settings.kill_switch_auto_rearm and self._too_many_recent_trips(
+            datetime.fromtimestamp(time.time(), tz=timezone.utc).date()
+        ):
+            self._enter_hard_halt(time.time(), datetime.fromtimestamp(time.time(), tz=timezone.utc).date())
 
     def _load_trip_dates(self) -> list[date]:
         """Rebuild recent trip history from the event log. Without this the
         hard-halt escalation lives only in memory, and `pkill && restart`
-        -- the exact reflex it exists to catch -- wipes it clean."""
+        -- the exact reflex it exists to catch -- wipes it clean.
+
+        An operator clear (see `clear_hard_halt`) moves the effective
+        start of the window forward: trips at or before it are what got
+        looked at and dealt with, not a pattern still in progress."""
         if not self.settings.kill_switch_auto_rearm:
             return []
         window = self.settings.kill_switch_hard_halt_window_days
         since = time.time() - window * 86400
         try:
+            clear_ts = self.db.latest_operator_clear_ts()
+            if clear_ts is not None:
+                since = max(since, clear_ts)
             tss = self.db.recent_kill_switch_trip_ts(since)
         except Exception:  # a DB without the table (or a stub in tests) must not block startup
             logger.warning("kill_switch_trip_history_unavailable", exc_info=True)
@@ -206,6 +223,25 @@ class RiskGate:
                 "window_days": self.settings.kill_switch_hard_halt_window_days,
             },
         )
+
+    def clear_hard_halt(self, reason: str, ts: float | None = None) -> None:
+        """The only sanctioned way off a hard halt: a human looked at why
+        it tripped repeatedly, decided it's safe to resume, and says why.
+        Writes a marker to the event log so a fresh restart also comes up
+        clear -- clearing in memory alone would just be re-hidden by
+        `_load_trip_dates` on the next process start.
+
+        Not exposed as a bare "un-halt" -- callers (the `poly15m-clear-halt`
+        CLI) must supply `reason` and it is logged and persisted, so the
+        override is auditable rather than silent."""
+        ts = ts if ts is not None else time.time()
+        logger.warning("kill_switch_operator_cleared", extra={"reason": reason})
+        self.db.insert_lifecycle_event(GLOBAL_SENTINEL, "kill_switch_operator_cleared", ts, {"reason": reason})
+        self._trip_dates = []
+        self._hard_halted = False
+        self._kill_switch_active = False
+        self._kill_switch_reason = None
+        self._daily_pnl = 0.0
 
     def reset_kill_switch_for_new_day(self) -> None:
         """Backtest-only day-rollover reset -- see module docstring. A no-op
