@@ -76,22 +76,29 @@ class TelegramHandler(logging.Handler):
             self.handleError(record)
 
     def _run(self) -> None:
+        # This thread must never die from a Telegram/network error -- that would
+        # silently stop all delivery for the rest of the process's life with no
+        # error anywhere (daemon thread, nothing else observes it). Every
+        # exception, not just send failures, is caught per-iteration.
         while True:
-            line = self._queue.get()
-            if line is None:
-                return
-            batch = [line]
-            deadline = time.monotonic() + self._batch_interval
-            while (remaining := deadline - time.monotonic()) > 0:
-                try:
-                    nxt = self._queue.get(timeout=remaining)
-                except queue.Empty:
-                    break
-                if nxt is None:
-                    self._send("\n".join(batch))
+            try:
+                line = self._queue.get()
+                if line is None:
                     return
-                batch.append(nxt)
-            self._send("\n".join(batch))
+                batch = [line]
+                deadline = time.monotonic() + self._batch_interval
+                while (remaining := deadline - time.monotonic()) > 0:
+                    try:
+                        nxt = self._queue.get(timeout=remaining)
+                    except queue.Empty:
+                        break
+                    if nxt is None:
+                        self._send("\n".join(batch))
+                        return
+                    batch.append(nxt)
+                self._send("\n".join(batch))
+            except Exception as exc:
+                print(f"telegram-log-forwarder: dropping batch: {exc!r}", file=sys.stderr)
 
     def _send(self, text: str) -> None:
         for start in range(0, len(text), self._MAX_MESSAGE_LEN):
@@ -105,8 +112,13 @@ class TelegramHandler(logging.Handler):
             )
             try:
                 urllib.request.urlopen(req, timeout=10).close()
-            except urllib.error.URLError:
-                pass  # best-effort: never let Telegram delivery issues affect the bot itself
+            except Exception as exc:
+                # best-effort: never let Telegram delivery issues affect the bot itself.
+                # Catches beyond urllib.error.URLError too -- a reset/dropped connection
+                # during getresponse() (RemoteDisconnected, ConnectionResetError,
+                # ssl.SSLError, ...) surfaces as a raw OSError/http.client exception,
+                # not a URLError, since urllib only wraps the request-send phase.
+                print(f"telegram-log-forwarder: send failed: {exc!r}", file=sys.stderr)
 
     def close(self) -> None:
         self._queue.put_nowait(None)
