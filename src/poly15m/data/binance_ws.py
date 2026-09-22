@@ -69,6 +69,24 @@ class BinanceFeed:
                 return price
         return None
 
+    def price_at(self, target_ts: float) -> tuple[float, float] | None:
+        """Newest buffered trade at or before `target_ts`, as (ts, price).
+
+        Used to anchor a window's reference open price to the window's own
+        open timestamp instead of to whenever discovery happened. Walks
+        backward from the newest tick for the same reason `price_since`
+        does -- the anchor is normally only seconds old, so scanning from
+        the front of a 30-minute buffer would be wasteful.
+
+        Returns None when the buffer holds nothing at or before the
+        target, which is the honest answer: the caller must not invent an
+        anchor from a later tick.
+        """
+        for ts, price in reversed(self.buffer):
+            if ts <= target_ts:
+                return ts, price
+        return None
+
     async def run(self) -> None:
         backoff = 1.0
         while True:
@@ -92,7 +110,17 @@ class BinanceFeed:
         except json.JSONDecodeError:
             logger.warning("binance_bad_json", extra={"raw": str(raw)[:200]})
             return
+        self._handle_payload(msg)
 
+    def _handle_payload(self, msg: dict) -> None:
+        """The parsed body of `_handle_message`, split out so a caller that
+        already has a dict -- the backtest replay loop, which builds these
+        messages itself rather than receiving JSON bytes off a socket --
+        can skip the encode/decode round trip. Same logic either way; only
+        the transport layer (bytes-in) differs from this entry point
+        (dict-in). Field values below use `float()`/comparisons that work
+        identically whether they arrive as native numbers or as strings,
+        so this makes no behavioral distinction between the two."""
         data = msg.get("data", msg)
         event = data.get("e")
 

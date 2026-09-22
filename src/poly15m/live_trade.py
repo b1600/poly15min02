@@ -34,6 +34,7 @@ from .config import settings
 from .data.binance_ws import BinanceFeed
 from .data.clob_ws import ClobFeed
 from .data.market_finder import MarketFinder
+from .data.resolution import RESOLUTION_SOURCE, ResolutionPoller
 from .data.window_tracker import WindowTracker
 from .db import Database
 from .execution.executor import LiveExecutor, _missing_credentials
@@ -76,6 +77,8 @@ class LiveTrader:
         self._last_decision_ts: dict[str, float] = {}
         self._last_traded_book_ts: dict[str, float] = {}
         self._subscribed_user_feed: set[str] = set()
+        self.resolution_poller: "ResolutionPoller | None" = None
+        self._proxy_outcome: dict[str, str | None] = {}
         self._kill_switch_handled = False
 
     def on_binance_tick(self, _ts: float, _price: float) -> None:
@@ -163,36 +166,94 @@ class LiveTrader:
             self._subscribed_user_feed.add(market.condition_id)
             self.user_feed.subscribe(market.condition_id)
 
-    def on_window_resolved(self, condition_id: str) -> None:
-        self.executor.cancel_all_for_condition(condition_id)
+    def on_window_closed(self, condition_id: str) -> None:
+        """Trading closed. Pull orders and wait for official settlement --
+        do not grade the window here.
 
+        The Binance close-vs-open proxy this used to grade with shares
+        `open_price` with the fair-value model that placed the orders, so
+        its errors correlate with the positions being graded. Feeding that
+        into `record_realized_pnl` drove the kill switch off a biased PnL
+        estimate; it now waits for Polymarket's settlement instead.
+        """
+        self.executor.cancel_all_for_condition(condition_id)
         now = time.time()
+
         open_price = self.tracker.open_price.get(condition_id)
         close_price = self.binance_feed.last_price
-        if open_price is not None and close_price is not None:
-            outcome = "up" if close_price >= open_price else "down"
-            self.db.set_market_resolution(condition_id, outcome, now)
-            pnl_estimate = self.position_manager.compute_resolution_pnl(condition_id, outcome)
-            if pnl_estimate is not None:
-                self.risk_gate.record_realized_pnl(pnl_estimate, ts=now)
-                logger.warning(
-                    "live_resolution_pnl_estimate",
-                    extra={
-                        "condition_id": condition_id,
-                        "outcome": outcome,
-                        "pnl_estimate": round(pnl_estimate, 2),
-                        "note": "assumes $1/$0 per share at redemption -- verify against your account",
-                    },
-                )
-        else:
-            logger.warning("live_resolution_outcome_unknown", extra={"condition_id": condition_id})
+        proxy_outcome = (
+            ("up" if close_price >= open_price else "down")
+            if open_price is not None and close_price is not None
+            else None
+        )
+        if proxy_outcome is not None:
+            self.db.set_market_proxy_outcome(condition_id, proxy_outcome)
+        self._proxy_outcome[condition_id] = proxy_outcome
+
+        if self.resolution_poller is not None:
+            self.resolution_poller.enqueue(condition_id, now=now)
+
+        logger.warning(
+            "window_closed_live",
+            extra={
+                "condition_id": condition_id,
+                "proxy_outcome": proxy_outcome,
+                "awaiting": "official_settlement",
+                "note": "verify redemption is handled by your account",
+            },
+        )
+
+    def on_official_resolution(self, condition_id: str, outcome: str, now: float | None = None) -> None:
+        now = now if now is not None else time.time()
+        proxy_outcome = self._proxy_outcome.pop(condition_id, None)
+        self.db.set_market_resolution(
+            condition_id, outcome, now, source=RESOLUTION_SOURCE, proxy_outcome=proxy_outcome
+        )
+
+        if proxy_outcome is not None and proxy_outcome != outcome:
+            logger.warning(
+                "resolution_divergence",
+                extra={
+                    "condition_id": condition_id,
+                    "official_outcome": outcome,
+                    "proxy_outcome": proxy_outcome,
+                },
+            )
+
+        pnl_estimate = self.position_manager.compute_resolution_pnl(condition_id, outcome)
+        if pnl_estimate is not None:
+            self.risk_gate.record_realized_pnl(pnl_estimate, ts=now)
+            logger.warning(
+                "live_resolution_pnl_estimate",
+                extra={
+                    "condition_id": condition_id,
+                    "outcome": outcome,
+                    "resolved_source": RESOLUTION_SOURCE,
+                    "pnl_estimate": round(pnl_estimate, 2),
+                    "note": "assumes $1/$0 per share at redemption -- verify against your account",
+                },
+            )
 
         self.position_manager.drop_market(condition_id)
         self.risk_gate.drop_market(condition_id)
         self._handle_kill_switch_if_needed()
         logger.warning(
             "window_resolved_live",
-            extra={"condition_id": condition_id, "note": "verify redemption is handled by your account"},
+            extra={"condition_id": condition_id, "outcome": outcome},
+        )
+
+    def on_resolution_abandoned(self, condition_id: str) -> None:
+        """Settlement never arrived. Release the window without feeding a
+        guessed PnL into the kill switch."""
+        self._proxy_outcome.pop(condition_id, None)
+        self.position_manager.drop_market(condition_id)
+        self.risk_gate.drop_market(condition_id)
+        logger.error(
+            "live_resolution_abandoned",
+            extra={
+                "condition_id": condition_id,
+                "note": "no official settlement; PnL for this window is NOT reflected in the kill switch",
+            },
         )
 
     def _handle_kill_switch_if_needed(self) -> None:
@@ -242,7 +303,7 @@ async def clock_loop(tracker: WindowTracker, trader: LiveTrader) -> None:
     while True:
         for condition_id, event in tracker.poll():
             if event == "resolved":
-                trader.on_window_resolved(condition_id)
+                trader.on_window_closed(condition_id)
         await asyncio.sleep(1.0)
 
 
@@ -305,7 +366,7 @@ async def run() -> None:
     binance_feed = BinanceFeed(settings, db)
     clob_feed = ClobFeed(settings, db)
     market_finder = MarketFinder(settings, db)
-    tracker = WindowTracker(db, binance_feed, clob_feed)
+    tracker = WindowTracker(db, binance_feed, clob_feed, cfg=settings)
     feature_engine = FeatureEngine(settings, binance_feed, clob_feed)
     position_manager = PositionManager(settings)
     risk_gate = RiskGate(settings, db)
@@ -318,6 +379,13 @@ async def run() -> None:
     trader = LiveTrader(
         db, binance_feed, clob_feed, tracker, feature_engine, position_manager, executor, user_feed, risk_gate
     )
+    resolution_poller = ResolutionPoller(
+        settings,
+        on_resolved=trader.on_official_resolution,
+        on_abandoned=trader.on_resolution_abandoned,
+        db=db,
+    )
+    trader.resolution_poller = resolution_poller
     binance_feed.set_on_tick(trader.on_binance_tick)
 
     stop = asyncio.Event()
@@ -334,6 +402,7 @@ async def run() -> None:
         asyncio.create_task(user_feed.run(), name="user_feed"),
         asyncio.create_task(market_finder.run(trader.on_new_market), name="market_finder"),
         asyncio.create_task(clock_loop(tracker, trader), name="clock_loop"),
+        asyncio.create_task(resolution_poller.run(), name="resolution_poller"),
         asyncio.create_task(trader.reprice_loop(), name="reprice_loop"),
         asyncio.create_task(trader.reconcile_loop(settings.order_poll_interval_seconds), name="reconcile_loop"),
         asyncio.create_task(trader.kill_switch_watchdog_loop(), name="kill_switch_watchdog"),

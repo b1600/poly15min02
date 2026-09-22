@@ -52,6 +52,32 @@ class Settings(BaseSettings):
     market_window_seconds: int = 15 * 60
     market_poll_interval_seconds: float = 15.0
 
+    # --- window open-price anchoring -----------------------------------
+    # The reference open price MUST be the Binance trade at the window's
+    # own open timestamp, not "whatever the feed last saw when discovery
+    # happened". Discovery runs on `market_poll_interval_seconds`, so a
+    # discovery-time sample lands ~poll_interval/2 late on average; at
+    # BTC's ~$99 mean absolute 15m move that mislabels every window whose
+    # true move is smaller than the sampling error. Anchor tolerance is
+    # how far *before* window_open_ts the anchoring trade may sit before
+    # we consider the anchor untrustworthy.
+    open_price_max_anchor_lag_seconds: float = 5.0
+    # How long after window open we keep retrying to anchor before giving
+    # up. A window that never gets a trustworthy anchor is left untraded
+    # rather than traded against a guessed reference.
+    open_price_anchor_deadline_seconds: float = 60.0
+
+    # --- official resolution grading -------------------------------------
+    # Paper PnL is graded against Polymarket's own settlement, never
+    # against our Binance proxy: the proxy shares `open_price` with the
+    # fair-value model, so proxy errors are correlated with the trades
+    # they grade and manufacture fake profit.
+    resolution_poll_interval_seconds: float = 20.0
+    # Give settlement this long to appear before abandoning the window.
+    # Abandoned windows are NEVER graded by proxy -- their cost basis is
+    # stranded and reported separately so realized PnL stays honest.
+    resolution_timeout_seconds: float = 3600.0
+
     # --- Phase 2 signal engine / fair value ----------------------------
     vol_lookback_seconds: int = 300
     vol_bar_seconds: float = 1.0

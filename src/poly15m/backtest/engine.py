@@ -7,7 +7,7 @@ approximately true: this doesn't reimplement any strategy logic. It
 reconstructs synthetic WebSocket-shaped messages from the recorded rows
 and feeds them through `BinanceFeed._handle_message` /
 `ClobFeed._handle_message` -- the exact same parsers live trading uses --
-and drives `PaperTrader.on_binance_tick` / `on_window_resolved` with an
+and drives `PaperTrader.on_binance_tick` / `on_window_closed` with an
 explicit replayed `now` (both accept one; see paper_trade.py). Everything
 downstream (`FeatureEngine`, `compute_fair_value`, `PositionManager`,
 `RiskGate`, `PaperExecutor`) is untouched, unmodified, the same objects
@@ -36,8 +36,8 @@ each trading day.
 
 from __future__ import annotations
 
-import json
 import logging
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -59,6 +59,11 @@ from . import data_loader
 from .data_loader import BinanceTick, BookEvent, MarketRow, TradeEvent
 
 logger = logging.getLogger(__name__)
+
+# Replayed outcomes come from the recording, not from a live Gamma lookup.
+# Labelling them distinctly keeps `markets.resolved_source` honest about
+# which rows were actually graded against Polymarket settlement.
+RECORDED_OUTCOME_SOURCE = "backtest_recorded"
 
 
 @dataclass
@@ -84,7 +89,7 @@ class BacktestEngine:
         self.db = output_db if output_db is not None else Database(":memory:")
         self.binance_feed = BinanceFeed(settings, self.db)
         self.clob_feed = ClobFeed(settings, self.db)
-        self.tracker = WindowTracker(self.db, self.binance_feed, self.clob_feed)
+        self.tracker = WindowTracker(self.db, self.binance_feed, self.clob_feed, cfg=settings)
         self.feature_engine = FeatureEngine(settings, self.binance_feed, self.clob_feed)
         self.position_manager = PositionManager(settings)
         # A replay drives its own day rollover via
@@ -108,6 +113,11 @@ class BacktestEngine:
         )
         self._windows_replayed = 0
         self._next_day_boundary_ts: float | None = None
+        # condition_id -> outcome as recorded at capture time. Replay grades
+        # from this rather than recomputing a Binance close-vs-open proxy:
+        # live trading now grades on official settlement, and the backtest
+        # has to score the same way or it is measuring a different strategy.
+        self._recorded_outcome: dict[str, str | None] = {}
 
     def _register_market(self, market_row: MarketRow) -> None:
         """Equivalent to WindowTracker.on_new_market, but sources open_price
@@ -143,42 +153,69 @@ class BacktestEngine:
         if market_row.open_price is not None:
             self.tracker.open_price[info.condition_id] = market_row.open_price
             self.db.set_market_open_price(info.condition_id, market_row.open_price, "backtest_input")
+        self._recorded_outcome[info.condition_id] = market_row.resolved_outcome
         self._windows_replayed += 1
 
     def _feed_binance_tick(self, tick: BinanceTick) -> None:
-        msg = {"e": "trade", "T": int(tick.ts * 1000), "p": str(tick.price), "q": str(tick.qty or 0), "m": tick.is_buyer_maker}
-        self.binance_feed._handle_message(json.dumps(msg))
+        # Bypasses BinanceFeed._handle_message's json.dumps/json.loads round
+        # trip -- profiled as a meaningful chunk of replay time across
+        # hundreds of thousands of calls, and pure waste, since this code
+        # already has a dict, not socket bytes. `_handle_payload` is the
+        # exact same parsing logic `_handle_message` would eventually reach
+        # after decoding; `last_msg_ts` is set explicitly to preserve
+        # `_handle_message`'s side effect (it must run before parsing, per
+        # its own docstring, so it can't move into `_handle_payload`).
+        # Values are passed as native numbers rather than the str(...) the
+        # live socket path would carry -- float()/int() give bit-identical
+        # results either way, so this changes no output, only skips a
+        # redundant str<->number round trip. "T" stays int(ts*1000): that
+        # millisecond truncation is the same one live's real exchange
+        # timestamps already carry (this data was itself recorded via the
+        # identical `ts = float(data["T"]) / 1000.0`), so replaying it
+        # un-truncated would NOT reproduce live's behavior -- it would be
+        # answering a different, more precise question than the one being
+        # replayed.
+        self.binance_feed.last_msg_ts = time.time()
+        self.binance_feed._handle_payload(
+            {"e": "trade", "T": int(tick.ts * 1000), "p": tick.price, "q": tick.qty or 0, "m": tick.is_buyer_maker}
+        )
         self.trader.on_binance_tick(tick.ts, tick.price, now=tick.ts)
 
     def _feed_book_event(self, condition_id: str, event: BookEvent) -> None:
-        msg = {
-            "event_type": "book",
-            "asset_id": event.token_id,
-            # A live message always carries its own "market" field, so
-            # ClobFeed can resolve condition_id even before subscribe() has
-            # populated condition_id_by_token for this token -- e.g. a
-            # market whose recorded book activity started fractionally
-            # before its own window_open_ts landed in this replay. Passing
-            # the known condition_id here restores that fallback instead of
-            # dropping it (which surfaces as a NOT NULL crash on insert).
-            "market": condition_id,
-            "timestamp": str(int(event.ts * 1000)),
-            "bids": [{"price": str(p), "size": str(s)} for p, s in event.bids],
-            "asks": [{"price": str(p), "size": str(s)} for p, s in event.asks],
-        }
-        self.clob_feed._handle_message(json.dumps(msg))
+        # Same bypass as _feed_binance_tick, using ClobFeed._handle_event
+        # directly -- it already takes a dict (_handle_message just decodes
+        # JSON into one and calls it), so no split was needed there.
+        self.clob_feed._handle_event(
+            {
+                "event_type": "book",
+                "asset_id": event.token_id,
+                # A live message always carries its own "market" field, so
+                # ClobFeed can resolve condition_id even before subscribe()
+                # has populated condition_id_by_token for this token -- e.g.
+                # a market whose recorded book activity started fractionally
+                # before its own window_open_ts landed in this replay.
+                # Passing the known condition_id here restores that
+                # fallback instead of dropping it (which surfaces as a NOT
+                # NULL crash on insert).
+                "market": condition_id,
+                "timestamp": int(event.ts * 1000),
+                "bids": [{"price": p, "size": s} for p, s in event.bids],
+                "asks": [{"price": p, "size": s} for p, s in event.asks],
+            }
+        )
 
     def _feed_trade_event(self, condition_id: str, event: TradeEvent) -> None:
-        msg = {
-            "event_type": "last_trade_price",
-            "asset_id": event.token_id,
-            "market": condition_id,
-            "timestamp": str(int(event.ts * 1000)),
-            "price": str(event.price),
-            "size": str(event.size),
-            "side": event.side,
-        }
-        self.clob_feed._handle_message(json.dumps(msg))
+        self.clob_feed._handle_event(
+            {
+                "event_type": "last_trade_price",
+                "asset_id": event.token_id,
+                "market": condition_id,
+                "timestamp": int(event.ts * 1000),
+                "price": event.price,
+                "size": event.size,
+                "side": event.side,
+            }
+        )
 
     def run(
         self,
@@ -217,6 +254,21 @@ class BacktestEngine:
         if events:
             self._next_day_boundary_ts = _next_utc_midnight(events[0][0])
 
+        def resolve(condition_id: str, ts: float) -> None:
+            """Close the window, then grade it from the recorded outcome.
+
+            A window with no recorded outcome is abandoned, never guessed
+            at -- the same rule live trading follows when official
+            settlement never arrives."""
+            self.trader.on_window_closed(condition_id, now=ts)
+            outcome = self._recorded_outcome.get(condition_id)
+            if outcome is None:
+                self.trader.on_resolution_abandoned(condition_id)
+            else:
+                self.trader.on_official_resolution(
+                    condition_id, outcome, now=ts, source=RECORDED_OUTCOME_SOURCE
+                )
+
         for ts, _priority, kind, payload in events:
             # cheap float comparison per event; the (rare) actual reset +
             # midnight recompute only runs when a day boundary is crossed
@@ -235,7 +287,7 @@ class BacktestEngine:
 
             for condition_id, event_name in self.tracker.poll(now=ts):
                 if event_name == "resolved":
-                    self.trader.on_window_resolved(condition_id, now=ts)
+                    resolve(condition_id, ts)
                     windows_resolved += 1
                     if on_window_resolved is not None:
                         on_window_resolved(windows_resolved, total_windows)
@@ -248,7 +300,7 @@ class BacktestEngine:
         final_ts = max(r.close_ts for r in market_rows)
         for condition_id, event_name in self.tracker.poll(now=final_ts):
             if event_name == "resolved":
-                self.trader.on_window_resolved(condition_id, now=final_ts)
+                resolve(condition_id, final_ts)
                 windows_resolved += 1
                 if on_window_resolved is not None:
                     on_window_resolved(windows_resolved, total_windows)

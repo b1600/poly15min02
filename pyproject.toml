@@ -30,6 +30,8 @@ poly15m-backtest = "poly15m.backtest.cli:main"
 poly15m-sweep = "poly15m.backtest.sweep:main"
 poly15m-calibrate = "poly15m.calibration.cli:main"
 poly15m-clear-halt = "poly15m.clear_kill_switch:main"
+poly15m-backfill-open-price = "poly15m.backfill:main"
+poly15m-backfill-outcomes = "poly15m.backfill_outcomes:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/poly15m"]

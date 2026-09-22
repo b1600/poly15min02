@@ -9,11 +9,25 @@ WINDOW_SECONDS = 900.0
 LOOKBACK = 90.0
 
 
-def build_fixture_db(db_path, condition_id="cond1", open_ts=100000.0, trend_per_sec=0.05, up_ask=0.4, down_ask=0.6):
+def build_fixture_db(
+    db_path,
+    condition_id="cond1",
+    open_ts=100000.0,
+    trend_per_sec=0.05,
+    up_ask=0.4,
+    down_ask=0.6,
+    record_outcome=True,
+):
     """A market that trends steadily in one direction through the window,
     with a persistently cheap ask on the winning side -- engineered to
     produce an obvious, sustained divergence rather than to model realistic
-    microstructure."""
+    microstructure.
+
+    The settled outcome is recorded on the market row because replay grades
+    from the record, the way live trading grades from Polymarket's
+    settlement -- it no longer recomputes a Binance close-vs-open proxy.
+    `record_outcome=False` leaves the window unsettled, to cover the
+    abandon path."""
     close_ts = open_ts + WINDOW_SECONDS
     db = Database(db_path)
     token_up, token_down = f"{condition_id}-up", f"{condition_id}-down"
@@ -51,6 +65,14 @@ def build_fixture_db(db_path, condition_id="cond1", open_ts=100000.0, trend_per_
         db.insert_book_snapshot(condition_id, token_up, bids=[(up_ask - 0.02, 500.0)], asks=[(up_ask, 500.0)], event_ts=t)
         db.insert_book_snapshot(condition_id, token_down, bids=[(down_ask - 0.02, 500.0)], asks=[(down_ask, 500.0)], event_ts=t)
         t += 5.0
+
+    if record_outcome:
+        db.set_market_resolution(
+            condition_id,
+            "up" if trend_per_sec >= 0 else "down",
+            close_ts,
+            source="test_fixture",
+        )
 
     db.close()
     return condition_id, open_ts, close_ts, final_price
@@ -163,3 +185,18 @@ def test_backtest_returns_empty_result_for_unknown_market(tmp_path):
     engine, result = run_backtest(db_path, ["nonexistent"], settings)
     assert result.num_windows_replayed == 0
     assert result.condition_ids == []
+
+
+def test_backtest_abandons_windows_with_no_recorded_settlement(tmp_path):
+    """Replay must not invent an outcome for an ungraded window -- the
+    cost basis is stranded and reported instead."""
+    db_path = tmp_path / "fixture.db"
+    condition_id, _, _, _ = build_fixture_db(db_path, trend_per_sec=0.05, record_outcome=False)
+
+    settings = make_settings()
+    engine, result = run_backtest(db_path, [condition_id], settings)
+
+    assert result.num_windows_replayed == 1
+    assert engine.executor.abandoned_windows == 1
+    assert engine.executor.abandoned_cost_basis > 0
+    assert result.realized_pnl == 0.0

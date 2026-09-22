@@ -12,11 +12,18 @@ real book depth, zero financial risk. The live counterpart (`live_trade.py`)
 reuses the exact same `PositionManager` -- only the execution layer
 (simulated fill vs. a real `py-clob-client` order) differs.
 
-Known approximation: Polymarket resolves against Chainlink's BTC/USD
-stream, which we don't have a feed for. Resolution outcome here uses our
-own recorded Binance open price vs. Binance price at window close instead
--- the same proxy already used for `open_price` (see record.py) -- so paper
-PnL is only as accurate as that proxy.
+Grading: PnL is realized against Polymarket's own settlement, fetched by
+`ResolutionPoller` after the window closes -- never against a Binance
+close-vs-open proxy. The proxy shares `open_price` with the fair-value
+model that picks the trades, so its errors are correlated with the
+positions it grades rather than independent of them, which biases PnL
+upward instead of merely adding noise. Over Sep 12-22 2026 that reported
++23.6% ROI where the true figure was +0.55%.
+
+The proxy is still computed and stored as `markets.proxy_outcome` purely
+so divergence from official settlement stays measurable; a window that
+never settles is abandoned (cost basis stranded and reported), never
+graded by proxy.
 
 Milestone (item 15): let this run for >=1-2 days of live data, then check
 `paper_pnl_log` -- only move to live trading (Phase 4) if realized PnL is
@@ -34,6 +41,7 @@ from .config import Settings, settings
 from .data.binance_ws import BinanceFeed
 from .data.clob_ws import ClobFeed
 from .data.market_finder import MarketFinder
+from .data.resolution import RESOLUTION_SOURCE, ResolutionPoller
 from .data.window_tracker import WindowTracker
 from .db import Database
 from .logging_setup import setup_logging
@@ -80,6 +88,12 @@ class PaperTrader:
         # let us "fill" against the same resting liquidity over and over.
         # Only attempt another decision once a book has genuinely moved.
         self._last_traded_book_ts: dict[str, float] = {}
+        # Set by run() once the poller exists; None in unit tests and in the
+        # backtester, which supplies recorded outcomes directly.
+        self.resolution_poller: "ResolutionPoller | None" = None
+        # Binance close-vs-open per closed window, held until official
+        # settlement arrives so the two can be compared.
+        self._proxy_outcome: dict[str, str | None] = {}
 
     def on_binance_tick(self, _ts: float, _price: float, now: float | None = None) -> None:
         """`now` is overridable so the backtest engine (Phase 6) can drive
@@ -197,17 +211,81 @@ class PaperTrader:
             return None
         return (bb + ba) / 2.0
 
-    def on_window_resolved(self, condition_id: str, now: float | None = None) -> None:
+    def on_window_closed(self, condition_id: str, now: float | None = None) -> None:
+        """Trading has ended for this window. Stop trading it and hand it to
+        the resolution poller -- but do NOT grade it here.
+
+        Grading waits for Polymarket's own settlement. The Binance
+        close-vs-open comparison is still computed and stored, but only as
+        `proxy_outcome`, so divergence against official settlement stays
+        measurable. It must never drive PnL: it shares `open_price` with
+        the fair-value model that chose the trades, which makes its errors
+        correlated with the positions it would be grading.
+        """
+        now = now if now is not None else time.time()
+
         open_price = self.tracker.open_price.get(condition_id)
         close_price = self.binance_feed.last_price
-        now = now if now is not None else time.time()
-        if open_price is None or close_price is None:
-            logger.warning("resolution_skipped_missing_price", extra={"condition_id": condition_id})
-            return
+        if open_price is not None and close_price is not None:
+            proxy_outcome = "up" if close_price >= open_price else "down"
+            self.db.set_market_proxy_outcome(condition_id, proxy_outcome)
+        else:
+            proxy_outcome = None
+        self._proxy_outcome[condition_id] = proxy_outcome
 
-        outcome = "up" if close_price >= open_price else "down"
-        self.db.set_market_resolution(condition_id, outcome, now)
+        logger.info(
+            "window_closed",
+            extra={
+                "condition_id": condition_id,
+                "proxy_outcome": proxy_outcome,
+                "open_price": open_price,
+                "close_price": close_price,
+                "awaiting": "official_settlement",
+            },
+        )
+
+        if self.resolution_poller is not None:
+            self.resolution_poller.enqueue(condition_id, now=now)
+
+        # Trading is over for this window even though grading is not, so
+        # the tradeable-inventory views are released now.
+        self.position_manager.drop_market(condition_id)
+        self.risk_gate.drop_market(condition_id)
+
+    def on_official_resolution(
+        self,
+        condition_id: str,
+        outcome: str,
+        now: float | None = None,
+        source: str = RESOLUTION_SOURCE,
+    ) -> None:
+        """Settlement arrived for this window -- realize PnL against it.
+
+        `source` records where the outcome came from. Live/paper runs leave
+        it at `polymarket_official`; the backtester passes its own label so
+        a replayed outcome is never recorded as though it had been fetched
+        from Polymarket.
+        """
+        now = now if now is not None else time.time()
+        proxy_outcome = self._proxy_outcome.pop(condition_id, None)
+
+        self.db.set_market_resolution(
+            condition_id, outcome, now, source=source, proxy_outcome=proxy_outcome
+        )
         resolution = self.executor.resolve_market(condition_id, outcome)
+
+        if proxy_outcome is not None and proxy_outcome != outcome:
+            # The exact failure mode that inflated the Sep 12-22 dry run.
+            # Worth an alert every time, not just a counter.
+            logger.warning(
+                "resolution_divergence",
+                extra={
+                    "condition_id": condition_id,
+                    "official_outcome": outcome,
+                    "proxy_outcome": proxy_outcome,
+                    "note": "binance proxy disagreed with official settlement",
+                },
+            )
 
         self.db.insert_paper_pnl_log(
             now,
@@ -226,15 +304,28 @@ class PaperTrader:
                 extra={
                     "condition_id": condition_id,
                     "outcome": outcome,
-                    "open_price": open_price,
-                    "close_price": close_price,
+                    "resolved_source": source,
                     "pnl": round(resolution.pnl, 2),
                     "realized_pnl_total": round(self.executor.realized_pnl, 2),
                 },
             )
+            # Deliberately the settlement timestamp, not the window's close
+            # timestamp. RiskGate buckets daily PnL by the UTC date of the
+            # ts it is handed and resets the running total whenever that
+            # date changes, so it only behaves correctly if the timestamps
+            # it sees are non-decreasing. Feeding it an older close_ts for a
+            # late-settling window would reset the current day's PnL to zero
+            # and disarm the daily loss limit. The cost of this choice is
+            # that a window closing just before UTC midnight is attributed
+            # to the following day -- at most one window per day, versus a
+            # safety bug.
             self.risk_gate.record_realized_pnl(resolution.pnl, ts=now)
-        self.position_manager.drop_market(condition_id)
-        self.risk_gate.drop_market(condition_id)
+
+    def on_resolution_abandoned(self, condition_id: str) -> None:
+        """No official settlement arrived in time. Strand the cost basis
+        rather than grading the window by proxy."""
+        self._proxy_outcome.pop(condition_id, None)
+        self.executor.abandon_market(condition_id)
 
     async def status_loop(self, interval: float = 60.0) -> None:
         while True:
@@ -247,6 +338,11 @@ class PaperTrader:
                     "open_positions": len(self.executor.positions),
                     "daily_pnl": round(self.risk_gate.daily_pnl, 2),
                     "kill_switch_active": self.risk_gate.kill_switch_active,
+                    "awaiting_settlement": len(self.resolution_poller.pending)
+                    if self.resolution_poller is not None
+                    else 0,
+                    "abandoned_windows": self.executor.abandoned_windows,
+                    "abandoned_cost_basis": round(self.executor.abandoned_cost_basis, 2),
                 },
             )
             self.db.insert_paper_pnl_log(
@@ -266,7 +362,10 @@ async def clock_loop(tracker: WindowTracker, trader: PaperTrader) -> None:
     while True:
         for condition_id, event in tracker.poll():
             if event == "resolved":
-                trader.on_window_resolved(condition_id)
+                # The clock's "resolved" milestone is the *trading* window
+                # ending. Settlement is a separate, later event handled by
+                # ResolutionPoller.
+                trader.on_window_closed(condition_id)
         await asyncio.sleep(1.0)
 
 
@@ -294,12 +393,19 @@ async def run() -> None:
     binance_feed = BinanceFeed(settings, db)
     clob_feed = ClobFeed(settings, db)
     market_finder = MarketFinder(settings, db)
-    tracker = WindowTracker(db, binance_feed, clob_feed)
+    tracker = WindowTracker(db, binance_feed, clob_feed, cfg=settings)
     feature_engine = FeatureEngine(settings, binance_feed, clob_feed)
     executor = PaperExecutor(db, settings)
     position_manager = PositionManager(settings)
     risk_gate = RiskGate(settings, db)
     trader = PaperTrader(db, binance_feed, clob_feed, tracker, feature_engine, executor, position_manager, risk_gate)
+    resolution_poller = ResolutionPoller(
+        settings,
+        on_resolved=trader.on_official_resolution,
+        on_abandoned=trader.on_resolution_abandoned,
+        db=db,
+    )
+    trader.resolution_poller = resolution_poller
     binance_feed.set_on_tick(trader.on_binance_tick)
 
     stop = asyncio.Event()
@@ -316,6 +422,7 @@ async def run() -> None:
         asyncio.create_task(market_finder.run(tracker.on_new_market), name="market_finder"),
         asyncio.create_task(clock_loop(tracker, trader), name="clock_loop"),
         asyncio.create_task(trader.status_loop(), name="status_loop"),
+        asyncio.create_task(resolution_poller.run(), name="resolution_poller"),
         asyncio.create_task(db.run_flush_loop(), name="db_flush"),
     ]
 

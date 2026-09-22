@@ -22,47 +22,66 @@ def make_trader(open_price: float, close_price: float | None):
     return trader, db, executor, position_manager
 
 
-def test_on_window_resolved_up_when_close_at_or_above_open():
+def test_official_resolution_pays_the_winning_side():
     trader, db, executor, _ = make_trader(open_price=100.0, close_price=100.0)
     executor.submit_order("cond1", "tok_up", "up", [(0.5, 100.0)], target_size=10.0, limit_price=0.9, ts=1.0)
 
-    trader.on_window_resolved("cond1")
+    trader.on_window_closed("cond1")
+    trader.on_official_resolution("cond1", "up")
 
-    row = db._conn.execute(
-        "SELECT resolved_outcome FROM markets WHERE condition_id = ?", ("cond1",)
-    ).fetchone()
-    # market row doesn't exist in this unit test (we never called upsert_market),
-    # so the UPDATE is a no-op -- what matters is the executor's resolution.
-    assert row is None
     assert executor.realized_pnl > 0  # bought the winning side cheap
 
 
-def test_on_window_resolved_down_when_close_below_open():
-    trader, db, executor, _ = make_trader(open_price=100.0, close_price=99.0)
+def test_official_resolution_overrides_a_disagreeing_proxy():
+    """The regression that inflated the Sep 12-22 2026 dry run.
+
+    The Binance proxy says Up (close >= open) while Polymarket settled
+    Down. Grading must follow settlement and book the loss, not the proxy
+    -- proxy-graded windows were 9% of the sample and 72% of the
+    "profit".
+    """
+    trader, db, executor, _ = make_trader(open_price=100.0, close_price=101.0)
     executor.submit_order("cond1", "tok_up", "up", [(0.5, 100.0)], target_size=10.0, limit_price=0.9, ts=1.0)
 
-    trader.on_window_resolved("cond1")
+    trader.on_window_closed("cond1")
+    assert trader._proxy_outcome["cond1"] == "up"
 
+    trader.on_official_resolution("cond1", "down")
+
+    assert executor.realized_pnl < 0
     assert "cond1" not in executor.positions
-    assert executor.realized_pnl < 0  # bought Up, but Down won
 
 
-def test_on_window_resolved_skips_when_prices_missing():
-    trader, db, executor, _ = make_trader(open_price=100.0, close_price=None)
+def test_window_close_does_not_realize_pnl():
+    """Closing a window must not grade it -- settlement comes later."""
+    trader, db, executor, _ = make_trader(open_price=100.0, close_price=101.0)
     executor.submit_order("cond1", "tok_up", "up", [(0.5, 100.0)], target_size=10.0, limit_price=0.9, ts=1.0)
 
-    trader.on_window_resolved("cond1")
+    trader.on_window_closed("cond1")
 
-    # position untouched -- resolution was skipped, not incorrectly guessed
     assert "cond1" in executor.positions
     assert executor.realized_pnl == 0.0
+    assert db._conn.execute("SELECT COUNT(*) FROM paper_pnl_log").fetchone()[0] == 0
 
 
-def test_on_window_resolved_drops_position_manager_inventory():
+def test_abandoned_window_strands_cost_basis_instead_of_guessing():
+    trader, db, executor, _ = make_trader(open_price=100.0, close_price=101.0)
+    executor.submit_order("cond1", "tok_up", "up", [(0.5, 100.0)], target_size=10.0, limit_price=0.9, ts=1.0)
+
+    trader.on_window_closed("cond1")
+    trader.on_resolution_abandoned("cond1")
+
+    assert "cond1" not in executor.positions
+    assert executor.realized_pnl == 0.0  # never guessed
+    assert executor.abandoned_cost_basis > 0
+    assert executor.abandoned_windows == 1
+
+
+def test_window_close_drops_position_manager_inventory():
     trader, db, executor, position_manager = make_trader(open_price=100.0, close_price=101.0)
     position_manager.record_fill("cond1", "up", 0.5, 10.0, 0.0)
 
-    trader.on_window_resolved("cond1")
+    trader.on_window_closed("cond1")
 
     assert "cond1" not in position_manager.inventory
 
@@ -155,7 +174,8 @@ def test_pnl_log_written_on_resolution():
     trader, db, executor, _ = make_trader(open_price=100.0, close_price=101.0)
     executor.submit_order("cond1", "tok_up", "up", [(0.5, 100.0)], target_size=10.0, limit_price=0.9, ts=1.0)
 
-    trader.on_window_resolved("cond1")
+    trader.on_window_closed("cond1")
+    trader.on_official_resolution("cond1", "up")
 
     rows = db._conn.execute("SELECT event, realized_pnl FROM paper_pnl_log").fetchall()
     assert len(rows) == 1

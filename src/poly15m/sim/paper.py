@@ -74,6 +74,12 @@ class PaperExecutor:
         self.positions: dict[str, MarketPosition] = {}
         self.realized_pnl: float = 0.0
         self.fees_paid: float = 0.0
+        # Cost basis of windows that closed but never produced an official
+        # settlement. Deliberately kept OUT of realized_pnl: we don't know
+        # whether they won, and guessing is what corrupted the track record
+        # in the first place. Reported separately so the gap is visible.
+        self.abandoned_cost_basis: float = 0.0
+        self.abandoned_windows: int = 0
 
     def position_size(self, condition_id: str, outcome: str) -> float:
         pos = self.positions.get(condition_id)
@@ -121,6 +127,32 @@ class PaperExecutor:
             },
         )
         return SimFill(condition_id, token_id, outcome, vwap, filled, fee, ts)
+
+    def abandon_market(self, condition_id: str) -> float:
+        """Drop a position that never got an official settlement.
+
+        Returns the stranded cost basis. This intentionally does NOT touch
+        `realized_pnl` -- an ungraded window has an unknown result, and
+        booking it as either a win or a loss would be a guess. Callers
+        surface the running total so abandoned windows stay auditable
+        rather than quietly vanishing.
+        """
+        pos = self.positions.pop(condition_id, None)
+        if pos is None:
+            return 0.0
+        cost_basis = pos.up.cost_basis + pos.down.cost_basis
+        self.abandoned_cost_basis += cost_basis
+        self.abandoned_windows += 1
+        logger.warning(
+            "paper_position_abandoned",
+            extra={
+                "condition_id": condition_id,
+                "cost_basis": round(cost_basis, 2),
+                "abandoned_cost_basis_total": round(self.abandoned_cost_basis, 2),
+                "abandoned_windows": self.abandoned_windows,
+            },
+        )
+        return cost_basis
 
     def resolve_market(self, condition_id: str, outcome: str) -> Resolution | None:
         """Realize PnL for a resolved window: the winning side pays $1/share,

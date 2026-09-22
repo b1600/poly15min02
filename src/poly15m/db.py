@@ -36,8 +36,11 @@ CREATE TABLE IF NOT EXISTS markets (
     window_close_ts REAL NOT NULL,
     open_price REAL,
     open_price_source TEXT,
+    open_price_ts REAL,
     resolved_outcome TEXT,
     resolved_ts REAL,
+    resolved_source TEXT,
+    proxy_outcome TEXT,
     discovered_ts REAL NOT NULL,
     raw_json TEXT
 );
@@ -162,6 +165,7 @@ class Database:
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA synchronous=NORMAL")
         self._conn.executescript(_SCHEMA)
+        self._migrate()
         self._conn.commit()
         self._dirty = False
         logger.info("db_opened", extra={"path": str(path)})
@@ -196,19 +200,76 @@ class Database:
         )
         self._dirty = True
 
-    def set_market_open_price(self, condition_id: str, price: float, source: str) -> None:
+    def _migrate(self) -> None:
+        """Additive column migration for databases created before the
+        open-price/resolution provenance columns existed.
+
+        `_SCHEMA` only uses CREATE TABLE IF NOT EXISTS, so an existing
+        `markets` table is left untouched by it -- these columns have to be
+        added explicitly. Every one is nullable with no default, so this is
+        safe to run against a populated database: existing rows keep their
+        values and read back NULL for the new columns.
+        """
+        existing = {row[1] for row in self._conn.execute("PRAGMA table_info(markets)")}
+        for column, decl in (
+            ("open_price_ts", "REAL"),
+            ("resolved_source", "TEXT"),
+            ("proxy_outcome", "TEXT"),
+        ):
+            if column not in existing:
+                self._conn.execute(f"ALTER TABLE markets ADD COLUMN {column} {decl}")
+                logger.info("db_migrated_column", extra={"table": "markets", "column": column})
+
+    def set_market_open_price(
+        self, condition_id: str, price: float, source: str, anchor_ts: float | None = None
+    ) -> None:
         self._conn.execute(
-            "UPDATE markets SET open_price = ?, open_price_source = ? WHERE condition_id = ?",
-            (price, source, condition_id),
+            "UPDATE markets SET open_price = ?, open_price_source = ?, open_price_ts = ? "
+            "WHERE condition_id = ?",
+            (price, source, anchor_ts, condition_id),
         )
         self._dirty = True
 
-    def set_market_resolution(self, condition_id: str, outcome: str, ts: float) -> None:
+    def set_market_resolution(
+        self,
+        condition_id: str,
+        outcome: str,
+        ts: float,
+        source: str = "unknown",
+        proxy_outcome: str | None = None,
+    ) -> None:
+        """Record the authoritative outcome. `source` names where it came
+        from ("polymarket_official") and `proxy_outcome` preserves our
+        Binance-derived guess alongside it, so divergence between the two
+        stays measurable instead of silently replacing the truth."""
         self._conn.execute(
-            "UPDATE markets SET resolved_outcome = ?, resolved_ts = ? WHERE condition_id = ?",
-            (outcome, ts, condition_id),
+            "UPDATE markets SET resolved_outcome = ?, resolved_ts = ?, resolved_source = ?, "
+            "proxy_outcome = COALESCE(?, proxy_outcome) WHERE condition_id = ?",
+            (outcome, ts, source, proxy_outcome, condition_id),
         )
         self._dirty = True
+
+    def set_market_proxy_outcome(self, condition_id: str, proxy_outcome: str) -> None:
+        self._conn.execute(
+            "UPDATE markets SET proxy_outcome = ? WHERE condition_id = ?",
+            (proxy_outcome, condition_id),
+        )
+        self._dirty = True
+
+    def price_at(self, source: str, target_ts: float) -> tuple[float, float] | None:
+        """Newest recorded tick at or before `target_ts`, as (event_ts, price).
+
+        The persisted counterpart to `BinanceFeed.price_at`, for anchoring a
+        window whose open predates the in-memory buffer (a fresh process
+        picking up a window already in progress) and for backfilling
+        historical windows offline.
+        """
+        row = self._conn.execute(
+            "SELECT event_ts, price FROM price_ticks WHERE source = ? AND event_ts <= ? "
+            "ORDER BY event_ts DESC LIMIT 1",
+            (source, target_ts),
+        ).fetchone()
+        return (row[0], row[1]) if row else None
 
     def insert_tick(
         self,

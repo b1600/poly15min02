@@ -9,13 +9,18 @@ recording to SQLite. Run this for a few hours and then check:
   - lifecycle events fire in order with no gaps (see `lifecycle_events`)
   - neither feed goes stale for long stretches (watch the WARNING logs)
 
-Known gap (left for a later phase, not required for Phase 1): actual
-Up/Down resolution outcomes aren't fetched yet, so `markets.resolved_outcome`
-stays NULL. The Gamma API doesn't expose the window's Chainlink-anchored
-opening price directly either -- `open_price` here is our own
-Binance-sourced snapshot taken at market-discovery time, used later as the
-fair-value reference; treat it as an approximation, not the authoritative
-resolution price.
+The recorder does not fetch resolution outcomes, so
+`markets.resolved_outcome` stays NULL here -- `poly15m-paper-trade` fills
+it from Polymarket's official settlement.
+
+`open_price` is our own Binance-sourced reference, anchored to the last
+trade at or before `window_open_ts` (see `WindowTracker`); Gamma doesn't
+expose the window's Chainlink-anchored opening price directly. It is
+still an approximation of the resolution price, but it is no longer
+sampled at market-discovery time -- that variant ran ~7.5s late on
+average and was the root cause of the Sep 12-22 2026 dry run reporting
++23.6% ROI against a true +0.55%. Windows that can't be anchored
+trustworthily are left with a NULL `open_price` and go untraded.
 """
 
 from __future__ import annotations
