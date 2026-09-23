@@ -223,36 +223,38 @@ class BacktestEngine:
         condition_ids: list[str],
         binance_lookback_seconds: float = 1800.0,
         on_window_resolved: Callable[[int, int], None] | None = None,
+        batch_days: int = 1,
     ) -> BacktestResult:
         market_rows = [r for r in (data_loader.load_market(db_path, cid) for cid in condition_ids) if r is not None]
         market_rows = [r for r in market_rows if r.open_price is not None]
         if not market_rows:
             return BacktestResult([], 0, 0.0, 0.0, 0.0, False)
+        market_rows.sort(key=lambda r: r.open_ts)
 
-        start_ts = min(r.open_ts for r in market_rows) - binance_lookback_seconds
-        end_ts = max(r.close_ts for r in market_rows)
-        binance_ticks = data_loader.load_binance_ticks(db_path, start_ts, end_ts)
+        # Replay in UTC-day-sized batches rather than materializing every
+        # binance tick + book/trade event across the full recorded history
+        # in one list -- on the full dataset that was large enough to
+        # trigger the OOM killer. Batches partition the timeline with no
+        # gaps or overlap (each batch's binance-tick range ends exactly
+        # where the next one's begins), so this produces the same event
+        # order the single-pass version did; only peak memory changes.
+        first_day = datetime.fromtimestamp(market_rows[0].open_ts, tz=timezone.utc).date()
 
-        events: list[tuple[float, int, str, object]] = []
-        # priority: market registration and book state should land before a
-        # binance tick at the exact same timestamp, so a decision made on
-        # that tick sees fresh state
+        def _block(r: MarketRow) -> int:
+            d = datetime.fromtimestamp(r.open_ts, tz=timezone.utc).date()
+            return (d - first_day).days // batch_days
+
+        day_batches: list[list[MarketRow]] = []
         for r in market_rows:
-            events.append((r.open_ts, 0, "market_open", r))
-        for t in binance_ticks:
-            events.append((t.ts, 2, "binance", t))
-        for r in market_rows:
-            for e in data_loader.load_book_events(db_path, r.condition_id):
-                events.append((e.ts, 1, "book", (r.condition_id, e)))
-            for e in data_loader.load_trade_events(db_path, r.condition_id):
-                events.append((e.ts, 1, "trade", (r.condition_id, e)))
-        events.sort(key=lambda x: (x[0], x[1]))
+            if day_batches and _block(day_batches[-1][-1]) == _block(r):
+                day_batches[-1].append(r)
+            else:
+                day_batches.append([r])
 
+        global_start_ts = market_rows[0].open_ts - binance_lookback_seconds
+        global_end_ts = max(r.close_ts for r in market_rows)
         total_windows = len(market_rows)
         windows_resolved = 0
-
-        if events:
-            self._next_day_boundary_ts = _next_utc_midnight(events[0][0])
 
         def resolve(condition_id: str, ts: float) -> None:
             """Close the window, then grade it from the recorded outcome.
@@ -269,35 +271,66 @@ class BacktestEngine:
                     condition_id, outcome, now=ts, source=RECORDED_OUTCOME_SOURCE
                 )
 
-        for ts, _priority, kind, payload in events:
-            # cheap float comparison per event; the (rare) actual reset +
-            # midnight recompute only runs when a day boundary is crossed
-            while self._next_day_boundary_ts is not None and ts >= self._next_day_boundary_ts:
-                self.risk_gate.reset_kill_switch_for_new_day()
-                self._next_day_boundary_ts = _next_utc_midnight(self._next_day_boundary_ts)
+        batch_start_ts = global_start_ts
+        for batch_idx, batch in enumerate(day_batches):
+            is_last_batch = batch_idx + 1 == len(day_batches)
+            batch_end_ts = global_end_ts if is_last_batch else day_batches[batch_idx + 1][0].open_ts
+            # Non-last batches query ticks up to (not including) the next
+            # batch's boundary -- BETWEEN is inclusive on both ends, and the
+            # next batch's query starts at that same boundary value, so
+            # without this a tick landing exactly on it would be fed twice.
+            tick_query_end_ts = batch_end_ts if is_last_batch else batch_end_ts - 1e-6
+            binance_ticks = data_loader.load_binance_ticks(db_path, batch_start_ts, tick_query_end_ts)
 
-            if kind == "market_open":
-                self._register_market(payload)
-            elif kind == "binance":
-                self._feed_binance_tick(payload)
-            elif kind == "book":
-                self._feed_book_event(*payload)
-            elif kind == "trade":
-                self._feed_trade_event(*payload)
+            events: list[tuple[float, int, str, object]] = []
+            # priority: market registration and book state should land before
+            # a binance tick at the exact same timestamp, so a decision made
+            # on that tick sees fresh state
+            for r in batch:
+                events.append((r.open_ts, 0, "market_open", r))
+            for t in binance_ticks:
+                events.append((t.ts, 2, "binance", t))
+            for r in batch:
+                for e in data_loader.load_book_events(db_path, r.condition_id):
+                    events.append((e.ts, 1, "book", (r.condition_id, e)))
+                for e in data_loader.load_trade_events(db_path, r.condition_id):
+                    events.append((e.ts, 1, "trade", (r.condition_id, e)))
+            events.sort(key=lambda x: (x[0], x[1]))
 
-            for condition_id, event_name in self.tracker.poll(now=ts):
-                if event_name == "resolved":
-                    resolve(condition_id, ts)
-                    windows_resolved += 1
-                    if on_window_resolved is not None:
-                        on_window_resolved(windows_resolved, total_windows)
+            if self._next_day_boundary_ts is None and events:
+                self._next_day_boundary_ts = _next_utc_midnight(events[0][0])
+
+            for ts, _priority, kind, payload in events:
+                # cheap float comparison per event; the (rare) actual reset +
+                # midnight recompute only runs when a day boundary is crossed
+                while self._next_day_boundary_ts is not None and ts >= self._next_day_boundary_ts:
+                    self.risk_gate.reset_kill_switch_for_new_day()
+                    self._next_day_boundary_ts = _next_utc_midnight(self._next_day_boundary_ts)
+
+                if kind == "market_open":
+                    self._register_market(payload)
+                elif kind == "binance":
+                    self._feed_binance_tick(payload)
+                elif kind == "book":
+                    self._feed_book_event(*payload)
+                elif kind == "trade":
+                    self._feed_trade_event(*payload)
+
+                for condition_id, event_name in self.tracker.poll(now=ts):
+                    if event_name == "resolved":
+                        resolve(condition_id, ts)
+                        windows_resolved += 1
+                        if on_window_resolved is not None:
+                            on_window_resolved(windows_resolved, total_windows)
+
+            batch_start_ts = batch_end_ts
 
         # recorded data can realistically end slightly before the exact
         # close_ts (the last live book/tick update just happened to land a
         # moment early) -- one final poll at the latest close_ts makes sure
         # "resolved" still fires for every window rather than silently
         # never triggering.
-        final_ts = max(r.close_ts for r in market_rows)
+        final_ts = global_end_ts
         for condition_id, event_name in self.tracker.poll(now=final_ts):
             if event_name == "resolved":
                 resolve(condition_id, final_ts)
@@ -323,8 +356,9 @@ def run_backtest(
     settings: Settings,
     output_db: Database | None = None,
     on_window_resolved: Callable[[int, int], None] | None = None,
+    batch_days: int = 1,
 ) -> tuple[BacktestEngine, BacktestResult]:
     ids = condition_ids if condition_ids is not None else data_loader.list_backtestable_markets(db_path)
     engine = BacktestEngine(settings, output_db)
-    result = engine.run(db_path, ids, on_window_resolved=on_window_resolved)
+    result = engine.run(db_path, ids, on_window_resolved=on_window_resolved, batch_days=batch_days)
     return engine, result
