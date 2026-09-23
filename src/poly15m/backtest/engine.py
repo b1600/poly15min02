@@ -87,8 +87,14 @@ class BacktestEngine:
     def __init__(self, settings: Settings, output_db: Database | None = None):
         self.settings = settings
         self.db = output_db if output_db is not None else Database(":memory:")
-        self.binance_feed = BinanceFeed(settings, self.db)
-        self.clob_feed = ClobFeed(settings, self.db)
+        # persist_ticks/persist_events=False: replay pushes the full recorded
+        # history's ticks/book/trade events through these feeds' live
+        # handlers, which by default mirror every one into `self.db`. On a
+        # multi-week replay that grew unbounded (tens of millions of rows in
+        # a table nothing here ever reads back) and was the real OOM-killer
+        # trigger -- see BinanceFeed/ClobFeed docstrings on the flag.
+        self.binance_feed = BinanceFeed(settings, self.db, persist_ticks=False)
+        self.clob_feed = ClobFeed(settings, self.db, persist_events=False)
         self.tracker = WindowTracker(self.db, self.binance_feed, self.clob_feed, cfg=settings)
         self.feature_engine = FeatureEngine(settings, self.binance_feed, self.clob_feed)
         self.position_manager = PositionManager(settings)

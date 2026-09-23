@@ -26,11 +26,23 @@ OnTick = Callable[[float, float], None]
 
 
 class BinanceFeed:
-    def __init__(self, settings: Settings, db: Database, on_tick: OnTick | None = None):
+    def __init__(
+        self,
+        settings: Settings,
+        db: Database,
+        on_tick: OnTick | None = None,
+        persist_ticks: bool = True,
+    ):
         self.settings = settings
         self.db = db
         self.symbol = settings.binance_symbol.lower()
         self._on_tick = on_tick
+        # Backtest replay feeds tens of millions of historical ticks through
+        # this same handler; persisting each one to `db` (there, a throwaway
+        # in-memory replay DB nothing ever reads back) grew unbounded across
+        # the full run and was the actual OOM-killer trigger -- upstream
+        # per-day event batching only bounded the read side, not this.
+        self._persist_ticks = persist_ticks
 
         self.buffer: deque[tuple[float, float]] = deque()
         self.last_price: float | None = None
@@ -130,9 +142,10 @@ class BinanceFeed:
             qty = float(data["q"])
             self.last_price = price
             self._append_buffer(ts, price)
-            self.db.insert_tick(
-                "binance", self.symbol.upper(), price, qty, ts, bool(data.get("m"))
-            )
+            if self._persist_ticks:
+                self.db.insert_tick(
+                    "binance", self.symbol.upper(), price, qty, ts, bool(data.get("m"))
+                )
             if self._on_tick:
                 self._on_tick(ts, price)
         elif "b" in data and "a" in data and "B" in data and "A" in data:

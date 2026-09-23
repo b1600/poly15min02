@@ -89,7 +89,7 @@ class OrderBook:
 
 
 class ClobFeed:
-    def __init__(self, settings: Settings, db: Database):
+    def __init__(self, settings: Settings, db: Database, persist_events: bool = True):
         self.settings = settings
         self.db = db
         self.books: dict[str, OrderBook] = {}
@@ -98,6 +98,11 @@ class ClobFeed:
 
         self._desired_assets: set[str] = set()
         self._reconnect_needed = asyncio.Event()
+        # See BinanceFeed's identical flag: backtest replay pushes millions
+        # of historical book/trade events through this handler, and
+        # persisting each into `db` (a throwaway in-memory replay DB
+        # nothing reads back) is the main driver of the OOM this avoids.
+        self._persist_events = persist_events
 
     def subscribe(self, condition_id: str, token_ids: list[str]) -> None:
         """Point the feed at a (new) market's tokens; triggers a resubscribe."""
@@ -178,13 +183,15 @@ class ClobFeed:
 
         if event_type == "book":
             book.apply_snapshot(item.get("bids", []), item.get("asks", []), event_ts, item.get("tick_size"))
-            bids, asks = book.as_sorted()
-            self.db.insert_book_snapshot(condition_id, asset_id, bids, asks, event_ts)
+            if self._persist_events:
+                bids, asks = book.as_sorted()
+                self.db.insert_book_snapshot(condition_id, asset_id, bids, asks, event_ts)
         elif event_type == "price_change":
             changes = item.get("changes") or item.get("price_changes") or []
             book.apply_price_change(changes, event_ts)
-            bids, asks = book.as_sorted()
-            self.db.insert_book_snapshot(condition_id, asset_id, bids, asks, event_ts)
+            if self._persist_events:
+                bids, asks = book.as_sorted()
+                self.db.insert_book_snapshot(condition_id, asset_id, bids, asks, event_ts)
         elif event_type == "last_trade_price":
             price = item.get("price")
             if price is not None:
@@ -198,15 +205,16 @@ class ClobFeed:
                     side,
                     self.settings.clob_trade_buffer_seconds,
                 )
-                self.db.insert_clob_trade(
-                    condition_id,
-                    asset_id,
-                    float(price),
-                    size,
-                    side,
-                    item.get("trade_id"),
-                    event_ts,
-                )
+                if self._persist_events:
+                    self.db.insert_clob_trade(
+                        condition_id,
+                        asset_id,
+                        float(price),
+                        size,
+                        side,
+                        item.get("trade_id"),
+                        event_ts,
+                    )
         elif event_type == "tick_size_change":
             new_tick = item.get("new_tick_size") or item.get("tick_size")
             if new_tick:
