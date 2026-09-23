@@ -230,6 +230,7 @@ class BacktestEngine:
         binance_lookback_seconds: float = 1800.0,
         on_window_resolved: Callable[[int, int], None] | None = None,
         batch_days: int = 1,
+        tick_batch_seconds: float = 1800.0,
     ) -> BacktestResult:
         market_rows = [r for r in (data_loader.load_market(db_path, cid) for cid in condition_ids) if r is not None]
         market_rows = [r for r in market_rows if r.open_price is not None]
@@ -237,13 +238,13 @@ class BacktestEngine:
             return BacktestResult([], 0, 0.0, 0.0, 0.0, False)
         market_rows.sort(key=lambda r: r.open_ts)
 
-        # Replay in UTC-day-sized batches rather than materializing every
-        # binance tick + book/trade event across the full recorded history
-        # in one list -- on the full dataset that was large enough to
-        # trigger the OOM killer. Batches partition the timeline with no
-        # gaps or overlap (each batch's binance-tick range ends exactly
-        # where the next one's begins), so this produces the same event
-        # order the single-pass version did; only peak memory changes.
+        # Replay in UTC-day-sized batches for market registration and
+        # book/trade events (grouping by day is just how those get scoped
+        # below; binance ticks get their own finer-grained sub-batching
+        # further down, since they're the dominant volume by ~2 orders of
+        # magnitude). Batches partition the timeline with no gaps or
+        # overlap, so this produces the same event order a single pass
+        # over the whole history would; only peak memory changes.
         first_day = datetime.fromtimestamp(market_rows[0].open_ts, tz=timezone.utc).date()
 
         def _block(r: MarketRow) -> int:
@@ -277,32 +278,9 @@ class BacktestEngine:
                     condition_id, outcome, now=ts, source=RECORDED_OUTCOME_SOURCE
                 )
 
-        batch_start_ts = global_start_ts
-        for batch_idx, batch in enumerate(day_batches):
-            is_last_batch = batch_idx + 1 == len(day_batches)
-            batch_end_ts = global_end_ts if is_last_batch else day_batches[batch_idx + 1][0].open_ts
-            # Non-last batches query ticks up to (not including) the next
-            # batch's boundary -- BETWEEN is inclusive on both ends, and the
-            # next batch's query starts at that same boundary value, so
-            # without this a tick landing exactly on it would be fed twice.
-            tick_query_end_ts = batch_end_ts if is_last_batch else batch_end_ts - 1e-6
-            binance_ticks = data_loader.load_binance_ticks(db_path, batch_start_ts, tick_query_end_ts)
-
-            events: list[tuple[float, int, str, object]] = []
-            # priority: market registration and book state should land before
-            # a binance tick at the exact same timestamp, so a decision made
-            # on that tick sees fresh state
-            for r in batch:
-                events.append((r.open_ts, 0, "market_open", r))
-            for t in binance_ticks:
-                events.append((t.ts, 2, "binance", t))
-            for r in batch:
-                for e in data_loader.load_book_events(db_path, r.condition_id):
-                    events.append((e.ts, 1, "book", (r.condition_id, e)))
-                for e in data_loader.load_trade_events(db_path, r.condition_id):
-                    events.append((e.ts, 1, "trade", (r.condition_id, e)))
+        def process(events: list[tuple[float, int, str, object]]) -> None:
+            nonlocal windows_resolved
             events.sort(key=lambda x: (x[0], x[1]))
-
             if self._next_day_boundary_ts is None and events:
                 self._next_day_boundary_ts = _next_utc_midnight(events[0][0])
 
@@ -328,6 +306,63 @@ class BacktestEngine:
                         windows_resolved += 1
                         if on_window_resolved is not None:
                             on_window_resolved(windows_resolved, total_windows)
+
+        batch_start_ts = global_start_ts
+        for batch_idx, batch in enumerate(day_batches):
+            is_last_batch = batch_idx + 1 == len(day_batches)
+            batch_end_ts = global_end_ts if is_last_batch else day_batches[batch_idx + 1][0].open_ts
+
+            # market_open/book/trade events for the day -- cheap even on the
+            # busiest recorded day (~200k book/trade rows), so loaded in
+            # full up front and merged into each tick sub-batch below by
+            # pointer rather than requeried per sub-batch.
+            day_events: list[tuple[float, int, str, object]] = []
+            for r in batch:
+                day_events.append((r.open_ts, 0, "market_open", r))
+            for r in batch:
+                for e in data_loader.load_book_events(db_path, r.condition_id):
+                    day_events.append((e.ts, 1, "book", (r.condition_id, e)))
+                for e in data_loader.load_trade_events(db_path, r.condition_id):
+                    day_events.append((e.ts, 1, "trade", (r.condition_id, e)))
+            day_events.sort(key=lambda x: (x[0], x[1]))
+            day_idx = 0
+            n_day_events = len(day_events)
+
+            # Binance ticks are the actual OOM driver: density varies by
+            # >30x across recorded days (up to ~4.4M ticks on the busiest
+            # one), so a fixed day-sized query can still blow past available
+            # memory on a tick-dense day even though most days are fine.
+            # Sub-batching by a fixed time slice instead bounds peak memory
+            # to that slice's density regardless of how the day as a whole
+            # looks. Sub-batches partition [batch_start_ts, batch_end_ts)
+            # with no gaps or overlap, same as the day-batches do, so this
+            # produces the identical event order -- only peak memory changes.
+            sub_start = batch_start_ts
+            while sub_start < batch_end_ts:
+                sub_end = min(sub_start + tick_batch_seconds, batch_end_ts)
+                is_final_sub = is_last_batch and sub_end >= batch_end_ts
+                # Half-open [sub_start, sub_end) via the same epsilon trick
+                # the day-batch boundary already relies on, except for the
+                # single final sub-batch of the whole replay, which must
+                # include the true last tick at exactly global_end_ts.
+                tick_query_end_ts = sub_end if is_final_sub else sub_end - 1e-6
+                binance_ticks = data_loader.load_binance_ticks(db_path, sub_start, tick_query_end_ts)
+
+                sub_events: list[tuple[float, int, str, object]] = [
+                    (t.ts, 2, "binance", t) for t in binance_ticks
+                ]
+                while day_idx < n_day_events and day_events[day_idx][0] < sub_end:
+                    sub_events.append(day_events[day_idx])
+                    day_idx += 1
+
+                process(sub_events)
+                sub_start = sub_end
+
+            # Guards a boundary rounding edge case; in practice every
+            # day_event's ts falls strictly before batch_end_ts because it
+            # belongs to a market registered inside this same batch.
+            if day_idx < n_day_events:
+                process(day_events[day_idx:])
 
             batch_start_ts = batch_end_ts
 
@@ -363,8 +398,15 @@ def run_backtest(
     output_db: Database | None = None,
     on_window_resolved: Callable[[int, int], None] | None = None,
     batch_days: int = 1,
+    tick_batch_seconds: float = 1800.0,
 ) -> tuple[BacktestEngine, BacktestResult]:
     ids = condition_ids if condition_ids is not None else data_loader.list_backtestable_markets(db_path)
     engine = BacktestEngine(settings, output_db)
-    result = engine.run(db_path, ids, on_window_resolved=on_window_resolved, batch_days=batch_days)
+    result = engine.run(
+        db_path,
+        ids,
+        on_window_resolved=on_window_resolved,
+        batch_days=batch_days,
+        tick_batch_seconds=tick_batch_seconds,
+    )
     return engine, result
