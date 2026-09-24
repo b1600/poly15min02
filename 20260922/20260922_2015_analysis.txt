@@ -159,6 +159,106 @@ nohup .venv/bin/python scripts/run_full_history_backtest.py > var/full_history_b
 
 Once it finishes, paste me the contents of var/full_history_backtest_result.json (or just tell me it's done) and I'll interpret the results against the pre-registered t≥2/t<1 thresholds.
 
+-----------------------23 Sep 2026 12:27
+
+explain how to rum step 3 and 4
+⧉ Selected 5 lines from 20260922/20260922_2015_analysis.txt in Visual Studio Code
+
+  Searched for 2 patterns, read 1 file, ran 4 shell commands
+
+No CLI flags — it just reads .env/config.py defaults. Here's how to run Steps 3 and 4.
+
+Step 3 — Stage 1 shakeout (~3 days live paper)
+
+Nothing has recorded with the fixed anchoring yet. I checked the DB: every row is still tagged binance_at_open_backfill (the historical correction) — zero rows tagged binance_at_open, which is what the live fixed code writes going forward. The fix is in the code (window_tracker.py, confirmed), it just hasn't been run live since being deployed. So Step 3 hasn't started.
+
+1. Start the paper trader, in your own terminal (not this session) — the Sep 22 05:32 note explains why: this session's sandbox gets suspended between messages and kills background processes, caffeinate included. A real terminal doesn't have that problem.
+
+cd /Users/tobiashartana/Documents/Code/Poly15min02
+nohup .venv/bin/python -m poly15m.paper_trade > var/paper_trade.log 2>&1 &
+(or .venv/bin/poly15m-paper-trade per the entry point in pyproject.toml, foreground if you want to watch it). No API keys needed — .env currently has no live-trading keys uncommented, which is correct for this stage. POLY15M_LIVE_TRADING_ENABLED should stay unset.
+
+2. Let it run ≥ 3 days, then check:
+
+.venv/bin/python scripts/check_shakeout.py
+
+Exit 0 = clear for Stage 2. It deliberately ignores PnL (3 days has no statistical power) 
+and instead checks: open-price anchored at window-open (not discovery), 
+every grade using official settlement, settlements actually arriving, 
+proxy-vs-official divergence near the expected ~7%, 
+and trading rate high enough for Stage 2 to accrue in reasonable time. 
+Fix any [FAIL] before moving on.
+
+Step 4 — Stage 2 out-of-sample paper (~30 days)
+
+Just keep the same poly15m-paper-trade process running past the 3-day shakeout — Step 4 is a continuation, not a separate run.
+
+.venv/bin/python scripts/check_pretest.py --restart-ts <ts when you started step 3>
+"ts": 1790141412.915 --> 2026-09-23 05:30:12.915 UTC (In Jakarta time (UTC+7), that's 2026-09-23 12:30:12.915.)
+
+Two things to watch out for before trusting this script's own verdict line:
+
+1. TARGET_N is hardcoded to 660 in the script — that's the old pre-registration from 20260911_todo.txt. 
+The plan you approved on 20:51 supersedes it with n=1,900. 
+The script will print "decision is due" at 660 and give a verdict — 
+don't take that verdict at face value; only trust it once n ≥ 1,900. 
+(Worth just editing TARGET_N = 1900 in the script so it can't mislead you or anyone else later.)
+
+2. --restart-ts defaults to 2026-09-11, which predates the open-price fix entirely. 
+Right now the DB already has 1,257 officially-settled+filled markets sitting since Sep 11 — 
+mostly the old Sep 12–22 dry run, which you already know tests at t≈0.13, not a real read on the fixed strategy. 
+If you run check_pretest.py with no args today, it'll happily compute a "decision due" verdict off that stale data. 
+===Always pass --restart-ts set to the epoch timestamp of when you (re)start poly15m-paper-trade for Step 3/4, 
+so only fresh, post-fix windows count.
+
+Get that timestamp from the shakeout scope check itself, e.g.:
+.venv/bin/python -c "
+import sqlite3
+c = sqlite3.connect('var/poly15m.db').cursor()
+print(c.execute(\"SELECT MIN(window_open_ts) FROM markets WHERE open_price_source='binance_at_open'\").fetchone())
+"
+
+Run check_pretest.py --restart-ts <that> periodically to watch pace — but per the plan, don't treat any t-stat below n=1,900 as a decision, just a progress read.
+check_pretest.py --restart-ts 1790142300.0
+
+✻ Sautéed for 1m 23s · done 12:26 PM
+
+
+-----------------------24 Sep 2026 13:29
+ Prompt: here's the shakeout result after 1 day run, analyze if dry run is working properly
+
+ Yes, the dry run looks like it's working. The two bugs that invalidated the Sep 12–22 run are fixed, and the one number that looks odd (1% proxy divergence) is actually more evidence that the fix works. I only had your screenshot and the code; the local var/poly15m.db stops at Sep 22 09:00, so I couldn't query the new run's rows myself.
+
+1. Open-price anchoring: fixed
+- All 99 windows are tagged binance_at_open. None are binance_at_discovery, the bug that stamped open prices a mean 9.9s late.
+- The anchor lag is about 0.4s on average and 2s at worst. The old error was roughly $10 per window.
+- 99 windows in 1.03 days is about 96 a day, which is every 15-minute window. None were missed.
+
+2. Settlement: working
+- All 98 graded windows were graded on polymarket_official, not on the Binance proxy.
+- All 95 windows that closed more than an hour ago have settled. Nothing is stuck. The one priced window that isn't graded yet is just too recent.
+- In the code, on_window_closed only saves the proxy result. PnL is realized only in on_official_resolution (src/poly15m/paper_trade.py:214-270), so the grading really is independent of the proxy.
+
+3. Proxy divergence at 1.0%: this is the good sign
+- The ~6.8% "historical" rate was produced by the bug. Your Sep 22 analysis (20260922/20260922_2015_analysis.txt:23) says the $10 open-price error flips about 7% of windows, and that's where the 6.8% came from.
+- Once the open price is correct, the proxy should mostly agree with settlement. What's left is small windows where Binance and Polymarket's settlement price land on opposite sides of the open, which fits 1%.
+- If the old ~7% were still the true rate, seeing 1 or fewer disagreements in 98 windows would happen by chance only about 0.8% of the time. So the bug-driven disagreements are gone.
+
+4. Trading rate: on track
+- 65 traded windows a day, slightly above the ~63/day baseline, so the Stage 2 sample is building as planned.
+
+Issues with the check script itself (not the bot)
+1. The divergence band is set around the bug. DIVERGENCE_EXPECTED = (0.01, 0.20), and 1/98 = 1.02% passes by one window. If the next two days have zero disagreements, check 4 will print a "suspiciously low" [WARN] even though the bot is behaving correctly. The fix is to lower the floor to 0 (or warn only when it's exactly 0 over 200+ windows) and change the "~6.8% historically" text to say that number came from mis-anchoring.
+2. The historical baseline in your DB is also measuring the bug. In the local DB, 152 of 2,419 backfilled windows (6.3%) disagree. But backfill_outcomes.py keeps the old proxy result (COALESCE(proxy_outcome, ...)), so that proxy was computed from the uncorrected open price. The analysis's step 1.3 ("expect ~7%") is checking the same bug, not the fixed pipeline.
+3. Stage 2 will take about 30 days, not 29. The script divides 1,900 by the daily rate but doesn't subtract the 67 windows already traded.
+
+What this check doesn't cover
+It checks the data pipeline, not how realistic the simulated fills are. It doesn't test whether paper fills at limit_price would really get filled on the live order book, or fees and slippage. That's by design, since 3 days of PnL is noise, but it's the next thing that could make Stage 2 look better than live trading would.
+
+-----------------------
+-----------------------
+-----------------------
+-----------------------
 -----------------------
 -----------------------
 -----------------------

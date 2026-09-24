@@ -16,8 +16,12 @@ are actually fixed, and that the data being accumulated is scorable:
   2. every graded window was graded against Polymarket's own settlement,
      not the Binance proxy
   3. settlements are actually arriving (nothing stuck or abandoned)
-  4. the proxy still disagrees with settlement at a believable rate --
-     ~7% on the historical sample. A flat 0% would mean grading is not
+  4. the proxy still disagrees with settlement at a believable rate.
+     The ~7% on the historical sample was the mis-anchoring bug itself
+     (a ~$10 open-price error flips the ~7% of windows that move <$10),
+     so post-fix it should be low -- the Binance-vs-settlement-feed
+     basis only. A rate back near 7% means anchoring has regressed; a
+     flat 0% over many windows would mean grading is not
      really independent of the proxy after all
   5. the bot is still trading at a useful rate, so Stage 2's n accrues
 
@@ -37,9 +41,14 @@ ANCHORED_SOURCE = "binance_at_open"
 OFFICIAL_SOURCE = "polymarket_official"
 
 MIN_SHAKEOUT_DAYS = 3.0
-# Historical proxy-vs-settlement disagreement was 6.8%; a run far outside
-# a generous band around that is worth a look either way.
-DIVERGENCE_EXPECTED = (0.01, 0.20)
+STAGE2_N = 1900
+# The historical 6.8% proxy-vs-settlement disagreement was produced by the
+# discovery-time anchoring bug, so it is the regression signal, not the
+# target. With the anchor fixed, only feed basis remains (~1% observed).
+DIVERGENCE_MAX = 0.04
+# Zero disagreements is only suspicious once there are enough windows
+# that the ~1% basis would almost surely have shown up.
+ZERO_DIVERGENCE_MIN_N = 200
 
 failures: list[str] = []
 warnings: list[str] = []
@@ -187,11 +196,14 @@ def main() -> int:
         warn(f"only {comparable} comparable windows -- too few to judge the divergence rate yet")
     else:
         rate = diverged / comparable
-        msg = f"proxy disagreed with settlement on {diverged}/{comparable} windows ({rate:.1%}); ~6.8% historically"
-        if rate < DIVERGENCE_EXPECTED[0]:
-            warn(msg + " -- suspiciously low; confirm grading is genuinely independent of the proxy")
-        elif rate > DIVERGENCE_EXPECTED[1]:
-            warn(msg + " -- unusually high; check the open-price anchor and the Binance feed")
+        msg = (
+            f"proxy disagreed with settlement on {diverged}/{comparable} windows ({rate:.1%}); "
+            f"was ~6.8% under the old mis-anchoring"
+        )
+        if diverged == 0 and comparable >= ZERO_DIVERGENCE_MIN_N:
+            warn(msg + " -- zero over this many windows; confirm grading is genuinely independent of the proxy")
+        elif rate > DIVERGENCE_MAX:
+            warn(msg + " -- near the pre-fix rate; check the open-price anchor and the Binance feed")
         else:
             ok(msg)
 
@@ -210,7 +222,11 @@ def main() -> int:
     else:
         ok(f"{per_day:.1f} traded windows/day ({traded} total)")
     if per_day > 0:
-        print(f"         -> Stage 2 (n=1,900, ~5% ROI floor) needs ~{1900/per_day:.0f} more days at this rate")
+        remaining = max(STAGE2_N - traded, 0)
+        print(
+            f"         -> Stage 2 (n={STAGE2_N:,}, ~5% ROI floor) needs ~{remaining / per_day:.0f} "
+            f"more days at this rate"
+        )
 
     # -- verdict ----------------------------------------------------
     print("\n" + "=" * 62)
