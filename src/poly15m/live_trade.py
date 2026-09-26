@@ -180,7 +180,7 @@ class LiveTrader:
         now = time.time()
 
         open_price = self.tracker.open_price.get(condition_id)
-        close_price = self.binance_feed.last_price
+        close_price = self.tracker.close_price(condition_id)
         proxy_outcome = (
             ("up" if close_price >= open_price else "down")
             if open_price is not None and close_price is not None

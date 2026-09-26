@@ -1,0 +1,28 @@
+ubuntu@ip-172-26-23-242:~/poly15min02$ .venv/bin/python scripts/check_shakeout.py
+Stage 1 shakeout -- scope: 2026-09-23T05:45:00+00:00 onward (3.36 days)
+
+1. Open-price anchoring
+  [PASS] all 323 priced windows anchored at window open
+  [PASS] anchor lag: mean 0.419s, worst 3.610s
+  [PASS] 0 of 323 windows unanchored and therefore untraded (0.0%)
+
+2. Settlement provenance
+  [PASS] all 321 graded windows used official settlement
+
+3. Settlement delivery
+  [PASS] every one of 319 long-closed windows settled
+
+4. Proxy vs official divergence
+  [WARN] proxy disagreed with settlement on 19/321 windows (5.9%); was ~6.8% under the old mis-anchoring -- near the pre-fix rate; check the open-price anchor and the Binance feed
+
+5. Trading rate (Stage 2 sample accrual)
+  [PASS] 64.8 traded windows/day (218 total)
+         -> Stage 2 (n=1,900, ~5% ROI floor) needs ~26 more days at this rate
+
+==============================================================
+Clear to start Stage 2, with 1 thing(s) worth a look:
+  - proxy disagreed with settlement on 19/321 windows (5.9%); was ~6.8% under the old mis-anchoring -- near the pre-fix rate; check the open-price anchor and the Binance feed
+
+Stage 2: pre-register the decision at n=1,900 traded windows and do not
+peek at the t-stat before then.
+ubuntu@ip-172-26-23-242:~/poly15min02$ 

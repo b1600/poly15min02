@@ -16,7 +16,7 @@ def make_trader(open_price: float, close_price: float | None):
     executor = PaperExecutor(db, settings)
     position_manager = PositionManager(settings)
     risk_gate = RiskGate(settings, db)
-    tracker = SimpleNamespace(open_price={"cond1": open_price})
+    tracker = SimpleNamespace(open_price={"cond1": open_price}, close_price=lambda condition_id: close_price)
     binance_feed = SimpleNamespace(last_price=close_price)
     trader = PaperTrader(db, binance_feed, None, tracker, None, executor, position_manager, risk_gate)
     return trader, db, executor, position_manager

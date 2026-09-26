@@ -71,6 +71,26 @@ class WindowTracker:
         self.markets[market.condition_id] = market
         self._needs_open_price.add(market.condition_id)
 
+    def close_price(self, condition_id: str) -> float | None:
+        """Last trade at or before this window's `close_ts`, for the Binance
+        proxy outcome -- the close-side twin of open-price anchoring.
+
+        The window-closed event fires on a 1s clock poll, so reading
+        `binance_feed.last_price` there sampled up to ~1s *after* close and
+        could flip small-move windows on post-close ticks. Returns None
+        when no trustworthy tick exists (same lag tolerance as the open
+        anchor), leaving the proxy unset rather than guessed.
+        """
+        market = self.markets.get(condition_id)
+        if market is None:
+            return None
+        tick = self.binance_feed.price_at(market.close_ts)
+        if tick is None:
+            tick = self.db.price_at("binance", market.close_ts)
+        if tick is None or market.close_ts - tick[0] > self.settings.open_price_max_anchor_lag_seconds:
+            return None
+        return tick[1]
+
     def latest_market(self) -> MarketInfo | None:
         if not self.markets:
             return None

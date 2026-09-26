@@ -138,3 +138,19 @@ def test_falls_back_to_recorded_ticks_when_buffer_predates_the_window():
     tracker.poll(now=1005.0)
 
     assert tracker.open_price["cond1"] == 100000.0
+
+
+def test_close_price_ignores_ticks_after_window_close():
+    # The 2026-09-25 07:00 window: +$4.44 at close, but a post-close tick
+    # read ~1s later by the clock poll flipped the proxy to "down".
+    tracker, _ = make_tracker([(1899.7, 100004.44), (1900.8, 99990.0)])
+    tracker.on_new_market(make_market())  # close_ts = 1900.0
+
+    assert tracker.close_price("cond1") == 100004.44
+
+
+def test_close_price_is_none_when_last_tick_is_too_stale():
+    tracker, _ = make_tracker([(1880.0, 100000.0)])
+    tracker.on_new_market(make_market())
+
+    assert tracker.close_price("cond1") is None

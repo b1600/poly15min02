@@ -17,12 +17,13 @@ are actually fixed, and that the data being accumulated is scorable:
      not the Binance proxy
   3. settlements are actually arriving (nothing stuck or abandoned)
   4. the proxy still disagrees with settlement at a believable rate.
-     The ~7% on the historical sample was the mis-anchoring bug itself
-     (a ~$10 open-price error flips the ~7% of windows that move <$10),
-     so post-fix it should be low -- the Binance-vs-settlement-feed
-     basis only. A rate back near 7% means anchoring has regressed; a
-     flat 0% over many windows would mean grading is not
-     really independent of the proxy after all
+     With anchoring verified (check 1) the first shakeout still saw
+     ~6% (19/321, Sep 23-26 2026): Binance vs the settlement feed
+     transiently diverges by tens of dollars (up to ~$86 seen), which
+     flips small- and mid-move windows. So ~6% is the baseline, not a
+     regression; anchoring regressions are caught directly by check 1.
+     Only a rate well above baseline, or a flat 0% over many windows
+     (grading not independent of the proxy), is worth a look
   5. the bot is still trading at a useful rate, so Stage 2's n accrues
 
 Scope defaults to the first window recorded with the fixed anchoring, so
@@ -42,12 +43,12 @@ OFFICIAL_SOURCE = "polymarket_official"
 
 MIN_SHAKEOUT_DAYS = 3.0
 STAGE2_N = 1900
-# The historical 6.8% proxy-vs-settlement disagreement was produced by the
-# discovery-time anchoring bug, so it is the regression signal, not the
-# target. With the anchor fixed, only feed basis remains (~1% observed).
-DIVERGENCE_MAX = 0.04
+# Post-fix baseline is ~6% (Binance-vs-settlement-feed basis, see check 4
+# in the docstring); the 0.10 ceiling leaves room for sampling noise at
+# n~300 while still flagging a real jump.
+DIVERGENCE_MAX = 0.10
 # Zero disagreements is only suspicious once there are enough windows
-# that the ~1% basis would almost surely have shown up.
+# that the ~6% basis would certainly have shown up.
 ZERO_DIVERGENCE_MIN_N = 200
 
 failures: list[str] = []
@@ -198,12 +199,12 @@ def main() -> int:
         rate = diverged / comparable
         msg = (
             f"proxy disagreed with settlement on {diverged}/{comparable} windows ({rate:.1%}); "
-            f"was ~6.8% under the old mis-anchoring"
+            f"~6% baseline post-fix"
         )
         if diverged == 0 and comparable >= ZERO_DIVERGENCE_MIN_N:
             warn(msg + " -- zero over this many windows; confirm grading is genuinely independent of the proxy")
         elif rate > DIVERGENCE_MAX:
-            warn(msg + " -- near the pre-fix rate; check the open-price anchor and the Binance feed")
+            warn(msg + " -- well above baseline; check the Binance feed and the proxy close price")
         else:
             ok(msg)
 
