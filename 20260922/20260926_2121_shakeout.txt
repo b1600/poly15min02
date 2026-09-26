@@ -26,3 +26,38 @@ Clear to start Stage 2, with 1 thing(s) worth a look:
 Stage 2: pre-register the decision at n=1,900 traded windows and do not
 peek at the t-stat before then.
 ubuntu@ip-172-26-23-242:~/poly15min02$ 
+
+
+
+
+---------------------------------------26 Sep 2026 21:36
+I committed the fix as bffbbd3 on a new branch, fix-proxy-close-price, together with the shakeout output file. I didn't commit straight to main because I branch off the default branch by default. It hasn't been pushed yet.
+
+What to do next
+
+1. Get the fix onto the server
+git checkout main && git merge --ff-only fix-proxy-close-price && git push
+# then on the server:
+git pull && <restart the bot>
+I can do the merge and push for you if you like. Restart just after a window closes. If you restart mid-window, the open price is recovered from recorded ticks anyway, but a restart between windows keeps things simple.
+
+2. Start Stage 2 and pre-register the decision today
+Before the sample grows, write down in the repo (for example 20260922/stage2_preregistration.md):
+- Sample size: n = 1,900 traded windows. Say whether the 218 already traded count. The script counts them.
+- Metric: ROI per traded window, graded only by official settlement.
+- Decision rule: for example, "go live bigger if t ≥ 2 and ROI ≥ 5%; otherwise stop or redesign."
+- Expected finish: about 26 days at the current rate, so around Oct 22.
+
+This fix doesn't break the sample. It only changes the proxy, which no longer affects trades or grading, so windows before and after the restart are comparable.
+
+3. While it runs, check only that the bot is healthy
+Run check_shakeout.py about once a week and look at anchoring, settlement delivery and trading rate. Don't look at PnL or the t-stat until n = 1,900. Proxy divergence should stay around 5–6%.
+
+4. Don't change the strategy until the decision
+Changing the fair-value model or its calibration mid-run would restart the n = 1,900 count. The safe thing to do meanwhile is start recording the settlement feed's price (Chainlink BTC/USD) next to Binance, without changing any trading logic. By Oct 22 you'd have about a month of data showing how far apart the two feeds get. That's what you'd need if Stage 2 comes back weak and you want to fix the model's overconfidence when BTC is near the open.
+
+✻ Sautéed for 24s · done 9:34 PM
+---------------------------------------
+---------------------------------------
+---------------------------------------
+---------------------------------------
