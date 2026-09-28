@@ -10,12 +10,14 @@ from __future__ import annotations
 
 import json
 import logging
+import logging.handlers
 import queue
 import sys
 import threading
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import Any
 
 _RESERVED = frozenset(logging.LogRecord("", 0, "", 0, "", (), None).__dict__) | {
@@ -131,6 +133,9 @@ def setup_logging(
     json_output: bool = True,
     telegram_bot_token: str | None = None,
     telegram_chat_id: str | None = None,
+    log_file: Path | None = None,
+    log_file_max_bytes: int = 50 * 1024 * 1024,
+    log_file_backups: int = 5,
 ) -> None:
     root = logging.getLogger()
     root.setLevel(level)
@@ -144,6 +149,17 @@ def setup_logging(
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(formatter)
     root.addHandler(handler)
+
+    if log_file is not None:
+        # Appends, so a restart keeps the earlier history (a shell `>`
+        # redirect truncated it), and doesn't depend on how the process was
+        # launched. Rotates rather than growing without bound.
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        file_handler = logging.handlers.RotatingFileHandler(
+            log_file, maxBytes=log_file_max_bytes, backupCount=log_file_backups, encoding="utf-8"
+        )
+        file_handler.setFormatter(formatter)
+        root.addHandler(file_handler)
 
     if telegram_bot_token and telegram_chat_id:
         telegram_handler = TelegramHandler(telegram_bot_token, telegram_chat_id)

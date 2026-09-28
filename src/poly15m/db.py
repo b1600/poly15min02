@@ -405,6 +405,15 @@ class Database:
         ).fetchone()
         return row[0] if row and row[0] is not None else None
 
+    def latest_tick_ts(self, source: str) -> float | None:
+        """Newest recorded `event_ts` for `source`. Lets a feed whose
+        (re)subscribe replays recent history skip points it already stored,
+        including across a process restart."""
+        row = self._conn.execute(
+            "SELECT MAX(event_ts) FROM price_ticks WHERE source = ?", (source,)
+        ).fetchone()
+        return row[0] if row and row[0] is not None else None
+
     def insert_order(
         self,
         condition_id: str,

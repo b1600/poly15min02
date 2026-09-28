@@ -57,3 +57,25 @@ def _record(msg: str):
     import logging
 
     return logging.LogRecord("test", logging.INFO, __file__, 0, msg, (), None)
+
+
+def test_log_file_gets_every_record_and_appends_across_restarts(tmp_path):
+    import json
+    import logging
+
+    from poly15m.logging_setup import setup_logging
+
+    path = tmp_path / "sub" / "paper_trade.log"
+    try:
+        setup_logging("INFO", True, log_file=path)
+        logging.getLogger("poly15m.test").info("first_run", extra={"n": 1})
+        setup_logging("INFO", True, log_file=path)  # a restart
+        logging.getLogger("poly15m.test").warning("second_run")
+    finally:
+        for h in logging.getLogger().handlers:
+            h.close()
+        logging.getLogger().handlers.clear()
+
+    lines = [json.loads(line) for line in path.read_text().splitlines()]
+    assert [(r["msg"], r["level"]) for r in lines] == [("first_run", "INFO"), ("second_run", "WARNING")]
+    assert lines[0]["n"] == 1

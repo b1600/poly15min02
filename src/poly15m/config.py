@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_json: bool = True
     db_path: Path = REPO_ROOT / "var" / "poly15m.db"
+    # paper_trade always appends its log here (in addition to stdout), so
+    # it lands in var/ next to the DB it describes
+    paper_trade_log_path: Path = REPO_ROOT / "var" / "paper_trade.log"
 
     # --- optional: mirror all log output to a Telegram chat -----------
     # both must be set to enable forwarding; leave unset to disable
@@ -45,6 +48,17 @@ class Settings(BaseSettings):
     gamma_api_base: str = "https://gamma-api.polymarket.com"
     clob_rest_base: str = "https://clob.polymarket.com"
     clob_ws_base: str = "wss://ws-subscriptions-clob.polymarket.com/ws"
+
+    # --- Settlement reference price (record-only, never drives trading) --
+    # 15m BTC markets settle on Chainlink's 60s BTC/USD TWAP stream, not on
+    # Binance spot. Polymarket relays it on PolyBolt's `price.crypto.twap`
+    # channel, which requires the polymarket_api_* CLOB credentials below;
+    # without them the feed stays off and the bot runs as before.
+    polybolt_ws_base: str = "wss://ws-live-v2.polymarket.com/ws"
+    settlement_twap_symbol: str = "btcusd"
+    # PolyBolt can stall with the socket still open; reconnect after this
+    # long without a data frame (the TWAP updates about once a second).
+    settlement_twap_stale_seconds: float = 60.0
     # Gamma event slugs for this series look like "btc-updown-15m-<unix ts>"
     market_slug_prefix: str = "btc-updown-15m-"
     # Gamma series slug used to resolve the numeric series_id for scoped discovery

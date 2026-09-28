@@ -54,13 +54,15 @@ Stop it anytime with Ctrl+C — it shuts down cleanly (cancels nothing since pap
 A few minutes just proves it works. The actual question — "is this edge real after costs?" — needs 1–2+ days of continuous data (that's Phase 3's explicit milestone). Practically, that means running it in the background across a longer stretch:
 
 ```
-nohup .venv/bin/poly15m-paper-trade > paper_trade.log 2>&1 &
+nohup .venv/bin/poly15m-paper-trade > /dev/null 2> var/paper_trade.stderr &
 ```
+
+The bot itself always appends its log to `var/paper_trade.log` (rotating at 50 MB, 5 backups), however it's launched, so don't redirect stdout into that same file. `var/paper_trade.stderr` only catches anything that bypasses logging (e.g. a hard interpreter crash).
 
 Or, equivalently, in a detached tmux session (lets you reattach later to watch it live):
 
 ```
-tmux new -d -s poly15m '.venv/bin/poly15m-paper-trade > paper_trade.log 2>&1'
+tmux new -d -s poly15m '.venv/bin/poly15m-paper-trade'
 ```
 
 Reattach anytime with `tmux attach -t poly15m` (detach again with `Ctrl+B` then `D`). Stop it with `tmux kill-session -t poly15m`, or reattach and hit `Ctrl+C`.

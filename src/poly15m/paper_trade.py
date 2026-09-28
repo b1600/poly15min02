@@ -42,6 +42,7 @@ from .data.binance_ws import BinanceFeed
 from .data.clob_ws import ClobFeed
 from .data.market_finder import MarketFinder
 from .data.resolution import RESOLUTION_SOURCE, ResolutionPoller
+from .data.settlement_twap_ws import SettlementTwapFeed
 from .data.window_tracker import WindowTracker
 from .db import Database
 from .logging_setup import setup_logging
@@ -376,6 +377,7 @@ async def run() -> None:
         settings.log_json,
         telegram_bot_token=settings.telegram_bot_token,
         telegram_chat_id=settings.telegram_chat_id,
+        log_file=settings.paper_trade_log_path,
     )
     calibration = load_calibration(settings)
     logger.info(
@@ -392,6 +394,7 @@ async def run() -> None:
     db = Database(settings.db_path)
     binance_feed = BinanceFeed(settings, db)
     clob_feed = ClobFeed(settings, db)
+    settlement_feed = SettlementTwapFeed(settings, db)  # record-only
     market_finder = MarketFinder(settings, db)
     tracker = WindowTracker(db, binance_feed, clob_feed, cfg=settings)
     feature_engine = FeatureEngine(settings, binance_feed, clob_feed)
@@ -419,6 +422,7 @@ async def run() -> None:
     tasks = [
         asyncio.create_task(binance_feed.run(), name="binance_feed"),
         asyncio.create_task(clob_feed.run(), name="clob_feed"),
+        asyncio.create_task(settlement_feed.run(), name="settlement_twap_feed"),
         asyncio.create_task(market_finder.run(tracker.on_new_market), name="market_finder"),
         asyncio.create_task(clock_loop(tracker, trader), name="clock_loop"),
         asyncio.create_task(trader.status_loop(), name="status_loop"),
@@ -435,7 +439,12 @@ async def run() -> None:
 
 
 def main() -> None:
-    asyncio.run(run())
+    try:
+        asyncio.run(run())
+    except Exception:
+        # otherwise the traceback reaches only stderr, not the log file
+        logger.exception("crashed")
+        raise
 
 
 if __name__ == "__main__":
