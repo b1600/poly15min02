@@ -268,6 +268,10 @@ class PositionManager:
         inv: MarketInventory,
     ) -> TradeIntent | None:
         s = self.settings
+        if s.max_entry_t_remaining is not None and t_remaining > s.max_entry_t_remaining:
+            return None
+        if s.min_sigma_to_trade > 0 and (sigma is None or sigma < s.min_sigma_to_trade):
+            return None
         edge = compute_edge(
             outcome, fair_p, asks, s.paper_trade_size, t_remaining, s.market_window_seconds, sigma, s
         )

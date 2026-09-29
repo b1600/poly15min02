@@ -60,7 +60,7 @@ def uncertainty_buffer(
     time_frac = max(0.0, min(1.0, t_remaining / window_seconds)) if window_seconds > 0 else 0.0
     vol_factor = 1.0
     if sigma is not None and settings.reference_sigma > 0:
-        vol_factor = sigma / settings.reference_sigma
+        vol_factor = max(sigma, settings.sigma_floor) / settings.reference_sigma
     base = settings.uncertainty_buffer_base * vol_factor * math.sqrt(time_frac)
 
     widen = 0.0

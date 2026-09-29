@@ -57,7 +57,11 @@ Run check_shakeout.py about once a week and look at anchoring, settlement delive
 Changing the fair-value model or its calibration mid-run would restart the n = 1,900 count. The safe thing to do meanwhile is start recording the settlement feed's price (Chainlink BTC/USD) next to Binance, without changing any trading logic. By Oct 22 you'd have about a month of data showing how far apart the two feeds get. That's what you'd need if Stage 2 comes back weak and you want to fix the model's overconfidence when BTC is near the open.
 
 ✻ Sautéed for 24s · done 9:34 PM
----------------------------------------
+
+
+---------------------------------------28 Sep 2026
+
+Sep 28: Stage 2 stopped early at n≈350 windows, t≈−2.9 since Sep 23. Bot stays on paper for data collection only. The Sep 28 overnight result (+$28, t≈1.4, 28 windows) does not change this.
 ---------------------------------------
 ---------------------------------------
 ---------------------------------------

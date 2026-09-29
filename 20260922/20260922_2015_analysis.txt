@@ -195,6 +195,7 @@ Just keep the same poly15m-paper-trade process running past the 3-day shakeout �
 
 .venv/bin/python scripts/check_pretest.py --restart-ts <ts when you started step 3>
 "ts": 1790141412.915 --> 2026-09-23 05:30:12.915 UTC (In Jakarta time (UTC+7), that's 2026-09-23 12:30:12.915.)
+.venv/bin/python scripts/check_pretest.py --restart-ts 1790141412
 
 Two things to watch out for before trusting this script's own verdict line:
 
@@ -255,8 +256,99 @@ Issues with the check script itself (not the bot)
 What this check doesn't cover
 It checks the data pipeline, not how realistic the simulated fills are. It doesn't test whether paper fills at limit_price would really get filled on the live order book, or fees and slippage. That's by design, since 3 days of PnL is noise, but it's the next thing that could make Stage 2 look better than live trading would.
 
------------------------
------------------------
+-----------------------28 Sep 2026 15:47
+Prompt: analyze why last 2 days been loosing streak, but earlier trades were better
+
+I found your server DB copy (var/poly15m.db, 2,918 paper fills from Aug 3 to Sep 28 07:04 UTC) and analyzed that. The paper_trade.log has no trades, as covered earlier.
+
+Results by period (graded against official settlement)
+
+┌───────────────────────────────────────┬─────────┬───────┬────────────┬────────┬──────┐
+│                Period                 │ Windows │  PnL  │ Per window │ t-stat │ ROI  │
+├───────────────────────────────────────┼─────────┼───────┼────────────┼────────┼──────┤
+│ Aug 3 – Sep 11                        │ 597     │ −$381 │ −0.64      │ −1.4   │ −4%  │
+├───────────────────────────────────────┼─────────┼───────┼────────────┼────────┼──────┤
+│ Sep 12 – 22 (open price mis-anchored) │ 660     │ +$72  │ +0.11      │ 0.5    │ +2%  │
+├───────────────────────────────────────┼─────────┼───────┼────────────┼─
+│ Sep 23 – 25 (anchoring fixed)         │ 164     │ −$68  │ −0.42      │ −1.3   │ −8%  │
+├───────────────────────────────────────┼─────────┼───────┼────────────┼─
+│ Sep 26 – 28                           │ 186     │ −$137 │ −0.74      │ −2.7   │ −14% │
+└───────────────────────────────────────┴─────────┴───────┴────────────┴─
+
+The "better" earlier period is really only Sep 12–22. At t=0.5 that resulm luck, and Aug–Sep 11 lost money. The losing streak didn't start 2 daysago. It started when the open-price anchoring fix went live on Sep 23, and the weekend made it worse. Since Sep 23 the bot is down $206 over 350 windows, t ≈ −2.9. That is a
+real signal, not just variance.
+
+Why
+
+1. The bot now mostly trades early in the window, and early trades have n
+The only consistently profitable bucket is trades with less than 8 minutes left and normal volatility (Sep 12–22: +$81). The share of fills with more than 8 minutes left went
+from 44% (Sep 12–22) to 58% (Sep 23–25) to 79% (Sep 26–28). In the last 2ost $117 of the $137. Early in the window BTC is still close to the open,and the model's probability comes from small moves and momentum.
+
+2. The model is overconfident when BTC is quiet, and the edge filter gets looser exactly then.
+- Sep 26–27 was a weekend: median sigma was 1.02–1.33, versus about 2–3 o
+- Deviation is (spot − open)/(sigma·√t) (signals/features.py:317), so a small sigma turns a few dollars of move into a large z-score.                                         - Sigma is a 60s-half-life EWMA of 1s bars, projected over up to 15 minutestimates the real 15-minute volatility.
+- The uncertainty buffer scales linearly with sigma (pricing/edge.py:62-64). At sigma ≈ 1 or below it shrinks, so more marginal trades pass min_edge.                         - Calibration check for Sep 26–28:
+  - When the model said 45–55%, the side won 22%.                                                                                                                               - When it said 30–45%, the side won 22% (market price 30%).
+  - Overall the model averaged 0.56, the market 0.46, and the actual win rate was 0.42. The market was better calibrated than the model.                                      - Even in the "good" Sep 12–22 period, low-vol trades lost money (−$50). st less exposure.
+                                                                                                                                                                              3. Gaps between Binance and the settlement feed are expensive.
+The bot prices off Binance, but windows settle on Polymarket's feed (the shakeout notes point to Chainlink). Windows where the two disagreed on the result lost $4.56 each on Sep 23–25 and $1.36 each on Sep 26–28, versus −$0.06 and −$0.68 otherwiseost since Sep 23, from just 30 windows. When sigma is low, a gap of tens of dollars between the feeds matters more.
+
+Not the cause: the Sep 26 deploy (bffbbd3). It only changed how the proxy close price is sampled, which affects no trading decision or PnL.
+
+What this means
+
+- The Sep 12–22 profit came from trades made with wrong open prices. Its best bucket was cheap late-window longshots, and those mostly vanished once anchoring was fixed. So
+  there's no evidence it was a real edge.
+- The positive full-history backtest (+$305, t=2.0) and the live results since Sep 23 (t≈−2.9) disagree. That gap is worth investigating before trusting either one.
+- Sep 26 notes pre-registered Stage 2 at n=1,900 windows with no strategya losing strategy to a pre-registered sample protects against falsepositives, not against losses, so stopping early at t≈−2.9 is reasonable.
+
+These fixes follow from the data but I haven't backtested them:
+1. Floor sigma, for example at reference_sigma, both in the deviation fory buffer.
+2. Block or penalize entries with more than about 8 minutes left.
+3. Record the settlement feed price next to Binance so the basis can be m
+
+Any of these restarts the Stage 2 count. I can backtest the sigma floor a over the full history if you want.
+
+-----------------------28 Sep 2026 15:48
+Prompt:  in this case, what should I do next?
+
+Keep the bot in paper mode, stop treating this run as Stage 2, and find out why the backtest and live results disagree before changing anything. Here's the order I'd go in:
+
+1. Keep the bot running on paper, but call Stage 2 failed.
+It costs nothing and keeps recording ticks, books and settlements, which you'll need. 
+Don't wait for n=1,900: at t≈−2.9 after 350 windows, the rest of the run is unlikely to turn it positive. 
+Write that decision down next to the Sep 26 notes, so the record shows it was an early stop and not a quiet change of plan.
+
+2. Reconcile the backtest with live trading (most important).
+Replay only the Sep 23–28 windows in the backtester and compare them one by one with the live fills: 
+were the same windows traded, on the same side, at similar prices, with the same PnL?
+- If the backtest also loses on those days: the backtester is faithful, 
+and live simply hit a bad stretch for the model. 
+You can use the backtest to test fixes.
+- If the backtest shows a profit where live lost: 
+the backtest is too optimistic, probably in its fill model, 
+latency or book state. Then any fix tuned on it (including the +$305 full-history result) can't be trusted until that's fixed.
+
+Skip this step and every later experiment might just be fitting a simulator that doesn't match reality.
+
+3. Start recording the settlement feed's price (Chainlink BTC/USD) next to Binance.
+This only records data and doesn't touch trading logic. The feed gaps cost $82 of the $206, and you can't model that basis until you have the data.
+
+4. Only then test fixes, on data they weren't built from.
+The candidates:
+- a floor on sigma (in both the deviation formula and the uncertainty buffer)
+- no entries with more than about 8 minutes left
+- a low-volatility filter
+
+Tune them on Aug–Sep 22 and check the result on Sep 23 onward. 
+Change as few things as possible: three filters picked after looking at the same 2 losing days will almost certainly fit that noise.
+
+5. Start a fresh forward paper run with its own pre-registration.
+Include a loss rule this time, for example "stop if t < −2 after 300 windows", so you don't have to decide mid-run again.
+
+Don't go live and don't raise size until step 5 comes back positive.
+
+Step 2 is the next thing to do, and I can run it now: replay Sep 23–28 through the backtester and diff it against the live fills.
 -----------------------
 -----------------------
 -----------------------

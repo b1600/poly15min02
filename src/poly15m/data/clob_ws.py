@@ -32,6 +32,16 @@ from ..db import Database
 
 logger = logging.getLogger(__name__)
 
+# The market channel pushes ~600 frames/s for a live BTC 15m market. With
+# websockets' default max_queue (16 frames, ~25 ms of traffic) any event-loop
+# stall pauses socket reads, so keepalive pongs go unread ("keepalive ping
+# timeout") and Polymarket's send buffer fills ("1013 slow consumer"). 20k
+# frames (~30 s, ~12 MB) rides out stalls instead of dropping the connection.
+_MAX_QUEUE = 20_000
+# A connection that stayed up this long resets the reconnect backoff, so a
+# drop after hours of uptime retries in 1 s rather than the last delay.
+_BACKOFF_RESET_UPTIME_S = 60.0
+
 
 @dataclass
 class OrderBook:
@@ -76,6 +86,18 @@ class OrderBook:
                 book_side[price] = size
         self.last_update_ts = event_ts
 
+    def prune_to_best(self, best_bid: float | None, best_ask: float | None) -> None:
+        """Drop levels better than the exchange's reported best prices. A
+        trade can consume a level without a price_change removing it, which
+        leaves a stale level (seen live: a 0.86 ask left under a 0.87 best
+        ask, crossing the 0.86 bid) until the next full book snapshot."""
+        if best_bid is not None:
+            for price in [p for p in self.bids if p > best_bid]:
+                del self.bids[price]
+        if best_ask is not None:
+            for price in [p for p in self.asks if p < best_ask]:
+                del self.asks[price]
+
     def best_bid(self) -> float | None:
         return max(self.bids) if self.bids else None
 
@@ -88,6 +110,13 @@ class OrderBook:
         return bids, asks
 
 
+def _opt_float(value) -> float | None:
+    try:
+        return float(value) if value not in (None, "") else None
+    except (TypeError, ValueError):
+        return None
+
+
 class ClobFeed:
     def __init__(self, settings: Settings, db: Database, persist_events: bool = True):
         self.settings = settings
@@ -98,11 +127,17 @@ class ClobFeed:
 
         self._desired_assets: set[str] = set()
         self._reconnect_needed = asyncio.Event()
+        self._connected_at: float | None = None
         # See BinanceFeed's identical flag: backtest replay pushes millions
         # of historical book/trade events through this handler, and
         # persisting each into `db` (a throwaway in-memory replay DB
         # nothing reads back) is the main driver of the OOM this avoids.
         self._persist_events = persist_events
+        # price_change arrives hundreds of times a second, so its book
+        # snapshots are throttled per token: token -> local time of the last
+        # write, and tokens changed since then whose latest state is unwritten.
+        self._last_persist_recv: dict[str, float] = {}
+        self._unpersisted: dict[str, float | None] = {}  # token -> event_ts of its latest change
 
     def subscribe(self, condition_id: str, token_ids: list[str]) -> None:
         """Point the feed at a (new) market's tokens; triggers a resubscribe."""
@@ -126,41 +161,56 @@ class ClobFeed:
             if not self._desired_assets:
                 await asyncio.sleep(0.5)
                 continue
+            self._connected_at = None
             try:
                 await self._connect_and_listen()
                 backoff = 1.0
             except (ConnectionClosed, OSError, asyncio.TimeoutError) as exc:
-                logger.warning("clob_ws_disconnected", extra={"error": str(exc), "retry_in": backoff})
+                uptime = time.time() - self._connected_at if self._connected_at is not None else None
+                if uptime is not None and uptime >= _BACKOFF_RESET_UPTIME_S:
+                    backoff = 1.0
+                logger.warning(
+                    "clob_ws_disconnected",
+                    extra={
+                        "error": str(exc),
+                        "uptime_s": round(uptime, 1) if uptime is not None else None,
+                        "retry_in": backoff,
+                    },
+                )
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, 30.0)
 
     async def _connect_and_listen(self) -> None:
         url = f"{self.settings.clob_ws_base}/market"
-        async with websockets.connect(url, ping_interval=10, ping_timeout=10) as ws:
+        async with websockets.connect(url, ping_interval=20, ping_timeout=20, max_queue=_MAX_QUEUE) as ws:
+            # Clear before reading the asset set so a subscribe() landing
+            # during the send below still triggers a resubscribe.
+            self._reconnect_needed.clear()
             assets = sorted(self._desired_assets)
             await ws.send(json.dumps({"assets_ids": assets, "type": "market"}))
+            self._connected_at = time.time()
             logger.info("clob_ws_connected", extra={"assets": assets})
-            self._reconnect_needed.clear()
 
-            recv_task = asyncio.ensure_future(ws.recv())
-            reconnect_task = asyncio.ensure_future(self._reconnect_needed.wait())
+            # Closing the socket on a resubscribe request ends the `async for`
+            # cleanly. A plain read loop costs half the CPU per frame of racing
+            # a fresh recv() task against the event with asyncio.wait.
+            watcher = asyncio.ensure_future(self._close_on_resubscribe(ws))
             try:
-                while True:
-                    done, _ = await asyncio.wait(
-                        {recv_task, reconnect_task}, return_when=asyncio.FIRST_COMPLETED
-                    )
-                    if reconnect_task in done:
-                        return  # desired asset set changed -> reconnect with fresh subscribe
-                    raw = recv_task.result()
+                async for raw in ws:
                     self._handle_message(raw)
-                    recv_task = asyncio.ensure_future(ws.recv())
             finally:
-                for task in (recv_task, reconnect_task):
-                    if not task.done():
-                        task.cancel()
+                watcher.cancel()
+            if not self._reconnect_needed.is_set():
+                logger.warning("clob_ws_closed_by_server", extra={"close_code": ws.close_code})
+
+    async def _close_on_resubscribe(self, ws) -> None:
+        await self._reconnect_needed.wait()
+        await ws.close()
 
     def _handle_message(self, raw: str | bytes) -> None:
         self.last_msg_ts = time.time()
+        if self._unpersisted:
+            self._flush_due_snapshots(self.last_msg_ts)
         try:
             payload = json.loads(raw)
         except json.JSONDecodeError:
@@ -173,10 +223,15 @@ class ClobFeed:
 
     def _handle_event(self, item: dict) -> None:
         event_type = item.get("event_type")
+        if event_type == "price_change" and "price_changes" in item:
+            self._handle_price_changes(item)
+            return
         asset_id = item.get("asset_id")
         if not asset_id:
             return
         condition_id = self.condition_id_by_token.get(asset_id) or item.get("market")
+        if asset_id not in self.condition_id_by_token and condition_id:
+            self.condition_id_by_token[asset_id] = condition_id
         book = self.books.setdefault(asset_id, OrderBook(asset_id))
         ts_raw = item.get("timestamp")
         event_ts = float(ts_raw) / 1000.0 if ts_raw else None
@@ -184,14 +239,12 @@ class ClobFeed:
         if event_type == "book":
             book.apply_snapshot(item.get("bids", []), item.get("asks", []), event_ts, item.get("tick_size"))
             if self._persist_events:
-                bids, asks = book.as_sorted()
-                self.db.insert_book_snapshot(condition_id, asset_id, bids, asks, event_ts)
+                self._persist_book(asset_id, event_ts, time.time())
         elif event_type == "price_change":
-            changes = item.get("changes") or item.get("price_changes") or []
-            book.apply_price_change(changes, event_ts)
+            # older shape: one asset per message, deltas under "changes"
+            book.apply_price_change(item.get("changes") or [], event_ts)
             if self._persist_events:
-                bids, asks = book.as_sorted()
-                self.db.insert_book_snapshot(condition_id, asset_id, bids, asks, event_ts)
+                self._persist_book_throttled(asset_id, event_ts)
         elif event_type == "last_trade_price":
             price = item.get("price")
             if price is not None:
@@ -212,7 +265,7 @@ class ClobFeed:
                         float(price),
                         size,
                         side,
-                        item.get("trade_id"),
+                        item.get("trade_id") or item.get("transaction_hash"),
                         event_ts,
                     )
         elif event_type == "tick_size_change":
@@ -221,3 +274,49 @@ class ClobFeed:
                 book.tick_size = float(new_tick)
         else:
             logger.debug("clob_ws_unhandled_event", extra={"event_type": event_type, "keys": list(item.keys())})
+
+    def _handle_price_changes(self, item: dict) -> None:
+        """Current market-channel shape: one message per market, with
+        `price_changes` entries each naming their own asset_id -- there is
+        no top-level asset_id. Entries are applied per asset in order."""
+        ts_raw = item.get("timestamp")
+        event_ts = float(ts_raw) / 1000.0 if ts_raw else None
+        by_asset: dict[str, list[dict]] = {}
+        for change in item.get("price_changes") or []:
+            asset_id = change.get("asset_id")
+            if asset_id:
+                by_asset.setdefault(asset_id, []).append(change)
+        for asset_id, changes in by_asset.items():
+            book = self.books.setdefault(asset_id, OrderBook(asset_id))
+            book.apply_price_change(changes, event_ts)
+            book.prune_to_best(_opt_float(changes[-1].get("best_bid")), _opt_float(changes[-1].get("best_ask")))
+            if self._persist_events:
+                if asset_id not in self.condition_id_by_token and item.get("market"):
+                    self.condition_id_by_token[asset_id] = item["market"]
+                self._persist_book_throttled(asset_id, event_ts)
+
+    def _persist_book_throttled(self, asset_id: str, event_ts: float | None) -> None:
+        now = time.time()
+        last = self._last_persist_recv.get(asset_id)
+        if last is None or now - last >= self.settings.clob_book_persist_interval_seconds:
+            self._persist_book(asset_id, event_ts, now)
+        else:
+            self._unpersisted[asset_id] = event_ts
+
+    def _flush_due_snapshots(self, now: float) -> None:
+        """Writes the latest state of any token whose last change was held
+        back by the throttle, once its interval has passed, so a burst's final
+        book always reaches the DB (stamped with that change's own time)."""
+        interval = self.settings.clob_book_persist_interval_seconds
+        for asset_id, event_ts in list(self._unpersisted.items()):
+            if now - self._last_persist_recv.get(asset_id, 0.0) >= interval:
+                self._persist_book(asset_id, event_ts, now)
+
+    def _persist_book(self, asset_id: str, event_ts: float | None, now: float) -> None:
+        condition_id = self.condition_id_by_token.get(asset_id)
+        if condition_id is None:
+            return
+        bids, asks = self.books[asset_id].as_sorted()
+        self.db.insert_book_snapshot(condition_id, asset_id, bids, asks, event_ts)
+        self._last_persist_recv[asset_id] = now
+        self._unpersisted.pop(asset_id, None)

@@ -1,0 +1,479 @@
+-----------------------29 Sep 2026
+Step 4 of the Sep 28 plan: reconcile the backtester with live paper trading, Sep 23 -> Sep 28.
+
+VERDICT
+The backtester matches live. Over the same 485 windows, live lost $205.68 (t = -2.87)
+and the backtest lost $193.96 (t = -2.72). The two agree on which windows to trade,
+which side to take and at what price. The losses come from the strategy, not from
+fills, latency or the simulator, and the backtester can be used to test fixes.
+
+The "backtest positive, live negative" conflict is explained by when the parameters
+were tuned. The full-history +$305 (t = 2.0) comes mostly from data the parameters
+were chosen on:
+  Aug 3  - Sep 7   (tuning period; sweep then fbd0623 on Sep 8)  703 windows  +$211.04
+  Sep 8  - Sep 22  (after tuning)                                898 windows   +$93.73  (~+0.10/window, t ~ 0.8, approx.)
+  Sep 23 - Sep 28  (after tuning, this replay)                   356 windows  -$193.96  (t = -2.72)
+  => Everything after tuning: ~1,254 windows, about -$100. There is no evidence of an edge outside the tuning period.
+  (Aug-Sep 22 backtest windows use backfilled binance_at_open anchors and official outcomes,
+   so they are graded on the same basis as Sep 23+.)
+
+KEY NUMBERS (details below)
+  - 343 windows traded by both; first entry on the same side in 339 (99%)
+  - same-side entries: median time difference 0.0 s, median price difference 0.000, identical price in 254/339
+  - PnL live minus backtest on shared windows: -$7.14 total (-$0.02/window)
+  - live-only: 9 windows (+$4.79); backtest-only: 15 windows (+$9.36); these come from decision timing
+    (live throttles decisions by wall clock; the backtest uses replayed ticks)
+  - 10 of the 15 backtest-only windows are Sep 25 18:00-23:30. Live was running (it logged fair
+    values) but had lost $97.14 of its $100 daily_loss_limit by 18:30, while the backtest was at
+    about -$83 for the day. Most likely the risk gate blocked live for lack of room under the limit;
+    not verified from logs (the DB copy has no risk-gate events).
+  - p_up_fair |live - bt|: median 0.0002, p99 0.026 -> the model sees the same inputs
+  - both enter with more than 8 minutes left 80% of the time (median ~12 min left) -> the early-entry
+    pattern is the strategy itself, not a live-only artefact
+
+CAVEATS
+  - Scope is the local DB copy, which ends Sep 28 07:15 UTC. The Sep 28 15:00 onward run in var/paper_trade.log is not included.
+  - Live and backtest both use only CLOB "book" snapshots (price_change messages are dropped by
+    clob_ws.py, see the Sep 29 CLOB notes). They match each other, but both use order books
+    that can be about a second old. A backtest after that bug is fixed may differ from this one.
+  - sigma/deviation have heavier tails between live and backtest (deviation p99 0.65), likely EWMA
+    warm-up after live restarts, but p_up_fair and trade choices are unaffected.
+
+WHAT THIS MEANS FOR THE PLAN
+  - Step 4 passes: use the backtester for step 5.
+  - Step 5 has to use a real hold-out. Tune on Aug 3 - Sep 7 only if the old tuning is repeated.
+    Better: tune on Aug 3 - Sep 22 and judge only on Sep 23+ plus a new forward run. Treat Sep 8 - 22 as
+    already "seen" too, since it was looked at during Sep 12-22 analysis.
+  - Given only ~+$0.10/window after tuning even before Sep 23, the realistic question is
+    whether there is any edge at all, not which filter restores it.
+
+HOW IT WAS RUN
+  - Backtest: poly15m.backtest.engine.run_backtest over all 485 windows with open_price and book data,
+    window_open_ts >= 2026-09-23 00:00 UTC, settings from .env (use_calibrated_fair_value=false,
+    matching live's "calibration_active": false), output to a scratch DB. Runtime 330 s.
+    No strategy code changed between Sep 23 and Sep 28 (only bffbbd3 proxy-close sampling and backtest batching).
+  - Live: fills (mode='paper') and fair_value_log from var/poly15m.db (server copy).
+  - Window PnL for both = sum(size if outcome == official resolved_outcome) - sum(price*size + fee).
+  - fair_value_log comparison: every 5th live row matched to the nearest backtest row within 1 s.
+
+================================================================ RAW OUTPUT
+Windows in scope: 485  (09-23 05:45:00 -> 09-28 07:15:00 UTC), unresolved: 3
+
+=== 1. HEADLINE: live vs backtest over the same windows ===
+period     src   traded  fills    cost$   fees$     PnL$ PnL/trd win      t    ROI
+Sep23-25   live     164    213   865.47   23.91   -68.37      -0.417  -1.33  -7.9%
+Sep23-25   bt       171    215   904.31   23.90   -65.52      -0.383  -1.28  -7.2%
+Sep26-28   live     186    307   980.50   29.84  -137.31      -0.738  -2.75 -14.0%
+Sep26-28   bt       185    303   964.04   29.63  -128.44      -0.694  -2.58 -13.3%
+ALL        live     350    520  1845.98   53.75  -205.68      -0.588  -2.87 -11.1%
+ALL        bt       356    518  1868.35   53.54  -193.96      -0.545  -2.72 -10.4%
+
+=== 2. WINDOW OVERLAP ===
+both       windows= 343  live PnL= -210.46 (n=341)  bt PnL= -203.33 (n=341)
+live_only  windows=   9  live PnL=   +4.79 (n=9)  bt PnL=   +0.00 (n=0)
+bt_only    windows=  15  live PnL=   +0.00 (n=0)  bt PnL=   +9.36 (n=15)
+neither    windows= 118  live PnL=   +0.00 (n=0)  bt PnL=   +0.00 (n=0)
+
+Of 343 windows both traded: first entry on SAME side in 339 (99%), OPPOSITE side in 4
+Same-side first entries: live entry time minus bt entry time: median +0.0s, p10 -6.8s, p90 +5.4s
+                         live price minus bt price:           median +0.000, mean -0.0027
+                         |time diff| <= 2s: 237/339, identical price: 254/339
+PnL(live) - PnL(bt) on shared windows: total -7.14, mean -0.021
+Opposite-side windows: live PnL -0.67, bt PnL -9.17
+
+=== 3. FILLS PER TRADED WINDOW & SIZE ===
+live  fills/window mean 1.49   $ per fill median 3.68   avg entry price 0.482
+      first-entry time remaining: >8min 80%, median 722s
+bt    fills/window mean 1.46   $ per fill median 3.86   avg entry price 0.488
+      first-entry time remaining: >8min 80%, median 726s
+
+=== 4. MODEL INPUTS: fair_value_log live vs bt (nearest row within 1s, same window) ===
+live rows sampled 61351, matched to a bt row within 1s: 61344
+  spot           |live-bt| median 0.00000  p90 0.00000  p99 0.01000  mean signed +0.00199
+  sigma          |live-bt| median 0.01350  p90 0.15363  p99 0.65481  mean signed -0.00266
+  deviation      |live-bt| median 0.00384  p90 0.07342  p99 0.64957  mean signed -0.27603
+  p_up_fair      |live-bt| median 0.00023  p90 0.00570  p99 0.02585  mean signed +0.00002
+  market_mid_up  |live-bt| median 0.00000  p90 0.00000  p99 0.06000  mean signed -0.00004
+  fair_value_log rows: live 305838, bt 311861
+
+=== 5. WINDOWS WHERE ONLY ONE SIDE TRADED: coverage check ===
+live_only  n=9: live had fair_value rows in 9, bt had fair_value rows in 9
+bt_only    n=15: live had fair_value rows in 15, bt had fair_value rows in 15
+
+=== 6. PER DAY ===
+day    live n  live PnL  bt n   bt PnL  both same side
+09-23      44    +41.04    44   +36.17    42        42
+09-24      60    -14.19    57   -18.35    57        55
+09-25      60    -95.22    70   -83.33    59        57
+09-26      88    -64.37    90   -63.20    90        90
+09-27      84    -58.80    81   -56.82    81        81
+09-28      14    -14.13    14    -8.42    14        14
+
+=== 7. PER-WINDOW DETAIL (L=live, B=backtest; first fill: side@price t_rem; n=fills) ===
+09-23 06:00:00 out=up    L: -                                B: up  @0.77 t= 217 n=1  +1.53       B-only
+09-23 06:15:00 out=down  L: down@0.66 t= 707 n=1  +2.65      B: down@0.64 t= 699 n=1  +2.90     
+09-23 06:30:00 out=up    L: up  @0.56 t= 593 n=1  +3.21      B: up  @0.57 t= 587 n=1  +1.86     
+09-23 06:45:00 out=down  L: down@0.65 t= 782 n=1  +2.78      B: down@0.65 t= 782 n=1  +2.78     
+09-23 07:15:00 out=up    L: up  @0.68 t= 442 n=1  +2.42      B: up  @0.68 t= 445 n=1  +2.42     
+09-23 08:00:00 out=up    L: up  @0.77 t= 311 n=1  +1.53      B: up  @0.77 t= 311 n=1  +1.53     
+09-23 08:15:00 out=down  L: up  @0.85 t= 596 n=1  -5.46      B: up  @0.85 t= 596 n=1  -5.46     
+09-23 08:30:00 out=down  L: down@0.53 t= 486 n=2  +0.39      B: down@0.53 t= 486 n=1  +2.74     
+09-23 08:45:00 out=down  L: down@0.58 t= 836 n=2  +2.81      B: -                                 L-only
+09-23 09:00:00 out=up    L: up  @0.69 t= 616 n=1  +2.31      B: up  @0.69 t= 618 n=1  +2.31     
+09-23 09:15:00 out=down  L: up  @0.70 t= 190 n=1  -5.51      B: up  @0.70 t= 190 n=1  -5.51     
+09-23 09:30:00 out=down  L: down@0.58 t= 683 n=2  +2.82      B: down@0.70 t= 625 n=1  +2.20     
+09-23 10:00:00 out=down  L: down@0.48 t= 393 n=2  +3.50      B: down@0.55 t= 410 n=2  +3.38     
+09-23 10:45:00 out=up    L: down@0.50 t= 714 n=2  -0.91      B: down@0.51 t= 704 n=2  -0.65     
+09-23 11:00:00 out=down  L: down@0.80 t= 427 n=1  +1.27      B: down@0.76 t= 451 n=1  +1.61     
+09-23 11:15:00 out=down  L: down@0.68 t= 687 n=1  +2.42      B: down@0.68 t= 691 n=1  +2.42     
+09-23 11:30:00 out=down  L: down@0.55 t= 405 n=2  +2.17      B: down@0.53 t= 396 n=2  +1.92     
+09-23 12:00:00 out=down  L: up  @0.56 t= 860 n=1  -5.09      B: up  @0.55 t= 860 n=1  -4.84     
+09-23 12:15:00 out=up    L: up  @0.70 t= 269 n=1  +2.20      B: up  @0.70 t= 269 n=1  +2.20     
+09-23 12:30:00 out=down  L: up  @0.72 t= 324 n=1  -5.49      B: up  @0.72 t= 324 n=1  -5.49     
+09-23 12:45:00 out=up    L: up  @0.61 t= 753 n=1  +3.31      B: up  @0.61 t= 753 n=1  +3.31     
+09-23 13:00:00 out=down  L: down@0.81 t= 608 n=1  +1.19      B: down@0.81 t= 608 n=1  +1.19     
+09-23 15:15:00 out=down  L: down@0.52 t= 153 n=2  +3.06      B: down@0.52 t= 155 n=2  +3.03     
+09-23 16:15:00 out=down  L: -                                B: down@0.56 t= 370 n=1  +4.08       B-only
+09-23 16:30:00 out=down  L: down@0.45 t= 571 n=1  +6.39      B: down@0.53 t= 485 n=1  +4.61     
+09-23 17:45:00 out=up    L: up  @0.80 t= 488 n=1  +1.27      B: up  @0.80 t= 488 n=1  +1.27     
+09-23 18:15:00 out=down  L: up  @0.45 t= 352 n=1  -4.94      B: up  @0.45 t= 352 n=1  -4.83     
+09-23 18:30:00 out=up    L: up  @0.53 t= 239 n=2  +2.54      B: up  @0.49 t= 169 n=2  +2.55     
+09-23 19:00:00 out=up    L: up  @0.37 t= 259 n=2  +8.96      B: up  @0.50 t= 805 n=1  +5.21     
+09-23 19:15:00 out=up    L: up  @0.79 t= 329 n=1  +1.36      B: up  @0.55 t= 428 n=2  +3.75     
+09-23 19:30:00 out=up    L: up  @0.60 t= 689 n=1  +3.45      B: up  @0.73 t= 630 n=1  +1.90     
+09-23 20:00:00 out=down  L: down@0.72 t= 392 n=1  +1.99      B: down@0.72 t= 393 n=1  +1.99     
+09-23 20:15:00 out=down  L: up  @0.58 t= 729 n=1  -5.56      B: up  @0.58 t= 729 n=1  -5.56     
+09-23 20:30:00 out=up    L: up  @0.78 t= 771 n=1  +1.44      B: up  @0.79 t= 762 n=1  +1.36     
+09-23 20:45:00 out=down  L: down@0.63 t= 721 n=1  +3.03      B: -                                 L-only
+09-23 21:00:00 out=up    L: up  @0.72 t= 453 n=1  +1.99      B: up  @0.72 t= 453 n=1  +1.99     
+09-23 21:15:00 out=up    L: down@0.69 t= 679 n=1  -5.52      B: down@0.69 t= 679 n=1  -5.52     
+09-23 21:30:00 out=up    L: up  @0.54 t= 809 n=2  +2.47      B: up  @0.54 t= 808 n=2  +3.23     
+09-23 21:45:00 out=down  L: up  @0.54 t= 818 n=2  -5.62      B: up  @0.54 t= 818 n=2  -5.61     
+09-23 22:00:00 out=up    L: up  @0.30 t= 492 n=2 +10.07      B: up  @0.36 t= 831 n=2 +10.11     
+09-23 22:15:00 out=down  L: down@0.66 t= 668 n=1  +2.65      B: down@0.66 t= 668 n=1  +2.65     
+09-23 22:30:00 out=up    L: down@0.79 t= 735 n=1  -3.61      B: down@0.80 t= 744 n=1  -5.48     
+09-23 23:00:00 out=down  L: down@0.77 t= 755 n=1  +1.53      B: down@0.77 t= 755 n=1  +1.53     
+09-23 23:15:00 out=down  L: down@0.71 t= 590 n=1  +2.10      B: down@0.71 t= 590 n=1  +2.10     
+09-23 23:30:00 out=down  L: up  @0.62 t= 832 n=1  -5.20      B: up  @0.62 t= 833 n=1  -5.20     
+09-23 23:45:00 out=down  L: down@0.66 t= 596 n=1  +2.65      B: down@0.66 t= 630 n=1  +2.65     
+09-24 00:00:00 out=down  L: up  @0.73 t= 766 n=1  -5.50      B: up  @0.74 t= 752 n=1  -5.50     
+09-24 00:15:00 out=down  L: up  @0.78 t= 682 n=1  -5.48      B: up  @0.70 t= 712 n=1  -5.51     
+09-24 00:30:00 out=up    L: down@0.77 t= 273 n=1  -5.49      B: down@0.77 t= 273 n=1  -5.49     
+09-24 00:45:00 out=down  L: down@0.86 t= 426 n=1  +0.83      B: down@0.86 t= 426 n=1  +0.83     
+09-24 01:00:00 out=down  L: down@0.79 t= 256 n=1  +1.36      B: down@0.79 t= 258 n=1  +1.36     
+09-24 01:30:00 out=down  L: up  @0.42 t= 741 n=2  -0.19      B: up  @0.42 t= 741 n=2  -0.14     
+09-24 01:45:00 out=down  L: down@0.80 t= 493 n=1  +0.70      B: down@0.81 t= 492 n=1  +1.19     
+09-24 02:30:00 out=up    L: up  @0.84 t= 310 n=1  +0.96      B: up  @0.86 t= 323 n=1  +0.83     
+09-24 02:45:00 out=up    L: up  @0.51 t= 879 n=2  +1.91      B: up  @0.51 t= 880 n=2  +1.83     
+09-24 03:00:00 out=down  L: up  @0.68 t= 791 n=1  -5.52      B: up  @0.68 t= 791 n=1  -5.52     
+09-24 03:15:00 out=down  L: down@0.56 t= 781 n=1  +4.08      B: down@0.52 t= 793 n=1  +4.80     
+09-24 03:30:00 out=down  L: down@0.60 t= 757 n=1  +3.45      B: down@0.60 t= 757 n=1  +3.45     
+09-24 03:45:00 out=down  L: down@0.72 t= 579 n=1  +1.99      B: down@0.63 t= 721 n=1  +3.03     
+09-24 04:00:00 out=down  L: down@0.57 t= 447 n=1  +1.76      B: down@0.57 t= 447 n=1  +1.76     
+09-24 04:15:00 out=up    L: up  @0.73 t= 398 n=1  +1.90      B: up  @0.73 t= 398 n=1  +1.90     
+09-24 04:30:00 out=down  L: down@0.56 t= 825 n=1  +4.08      B: down@0.56 t= 825 n=1  +4.08     
+09-24 04:45:00 out=up    L: down@0.55 t= 806 n=2  -5.58      B: down@0.55 t= 806 n=2  -5.58     
+09-24 05:00:00 out=up    L: up  @0.77 t= 775 n=1  +1.53      B: up  @0.77 t= 775 n=1  +1.53     
+09-24 05:15:00 out=down  L: down@0.58 t= 588 n=2  +1.66      B: down@0.58 t= 588 n=2  +1.62     
+09-24 05:30:00 out=up    L: down@0.71 t= 774 n=1  -5.51      B: down@0.71 t= 774 n=1  -5.51     
+09-24 05:45:00 out=down  L: up  @0.58 t= 777 n=1  -5.56      B: up  @0.58 t= 777 n=1  -5.56     
+09-24 06:00:00 out=up    L: up  @0.45 t= 532 n=2  +4.62      B: -                                 L-only
+09-24 06:15:00 out=up    L: up  @0.54 t= 768 n=2  +0.09      B: down@0.72 t= 373 n=1  -5.51       OPP
+09-24 06:30:00 out=up    L: down@0.26 t= 130 n=1  -1.32      B: down@0.22 t= 130 n=1  -1.35     
+09-24 06:45:00 out=down  L: down@0.79 t= 470 n=1  +1.36      B: down@0.79 t= 469 n=1  +1.36     
+09-24 07:30:00 out=up    L: down@0.16 t= 274 n=2  -4.15      B: down@0.16 t= 274 n=2  -4.15     
+09-24 08:30:00 out=down  L: up  @0.45 t= 411 n=1  -5.61      B: up  @0.45 t= 411 n=1  -5.61     
+09-24 09:00:00 out=down  L: down@0.48 t= 417 n=1  +5.65      B: down@0.37 t= 320 n=2  +5.36     
+09-24 10:15:00 out=up    L: down@0.31 t= 584 n=2  -5.66      B: down@0.31 t= 584 n=2  -5.64     
+09-24 10:45:00 out=up    L: down@0.59 t= 762 n=1  -4.61      B: down@0.59 t= 762 n=1  -4.69     
+09-24 11:00:00 out=up    L: up  @0.68 t= 787 n=1  +2.42      B: up  @0.73 t= 639 n=1  +1.90     
+09-24 11:15:00 out=down  L: down@0.63 t= 546 n=1  +3.03      B: down@0.63 t= 546 n=1  +3.03     
+09-24 11:45:00 out=up    L: up  @0.69 t= 483 n=1  +2.31      B: up  @0.68 t= 473 n=1  +2.42     
+09-24 12:00:00 out=up    L: up  @0.39 t= 373 n=2  +6.74      B: up  @0.62 t= 267 n=1  +3.17     
+09-24 12:45:00 out=up    L: down@0.59 t= 719 n=1  -5.55      B: down@0.59 t= 719 n=1  -5.55     
+09-24 14:00:00 out=up    L: down@0.59 t= 143 n=1  -5.55      B: -                                 L-only
+09-24 15:45:00 out=up    L: down@0.53 t= 781 n=1  -5.58      B: down@0.57 t= 562 n=1  -5.56     
+09-24 16:30:00 out=down  L: up  @0.53 t= 271 n=1  -5.58      B: up  @0.53 t= 271 n=1  -5.58     
+09-24 16:45:00 out=down  L: up  @0.56 t= 642 n=1  -5.57      B: up  @0.59 t= 641 n=1  -5.55     
+09-24 18:00:00 out=up    L: up  @0.74 t= 261 n=1  +1.80      B: -                                 L-only
+09-24 18:30:00 out=down  L: up  @0.24 t= 381 n=1  -2.91      B: up  @0.24 t= 381 n=1  -2.91     
+09-24 18:45:00 out=up    L: down@0.53 t= 664 n=1  -4.84      B: up  @0.73 t= 245 n=1  +1.90       OPP
+09-24 19:00:00 out=up    L: up  @0.44 t= 236 n=2  +6.40      B: up  @0.41 t= 297 n=2  +5.34     
+09-24 19:15:00 out=up    L: up  @0.37 t= 427 n=2  +5.23      B: up  @0.37 t= 427 n=2  +5.20     
+09-24 19:45:00 out=down  L: down@0.15 t= 207 n=2 +13.17      B: down@0.15 t= 208 n=2 +12.33     
+09-24 20:00:00 out=down  L: down@0.65 t= 527 n=1  +2.78      B: down@0.65 t= 527 n=1  +2.78     
+09-24 20:15:00 out=down  L: up  @0.48 t= 691 n=1  -5.60      B: up  @0.52 t= 653 n=1  -5.58     
+09-24 20:30:00 out=up    L: down@0.67 t= 689 n=1  -5.52      B: down@0.67 t= 691 n=1  -5.52     
+09-24 20:45:00 out=down  L: up  @0.44 t= 869 n=2  -0.92      B: up  @0.44 t= 876 n=2  -0.81     
+09-24 21:00:00 out=down  L: down@0.59 t= 580 n=2  +3.17      B: down@0.59 t= 580 n=2  +3.25     
+09-24 21:15:00 out=up    L: up  @0.67 t= 771 n=1  +2.53      B: up  @0.67 t= 771 n=1  +2.53     
+09-24 21:30:00 out=up    L: up  @0.60 t= 785 n=2  +3.04      B: up  @0.66 t= 764 n=1  +2.65     
+09-24 21:45:00 out=down  L: down@0.75 t= 600 n=1  +1.71      B: down@0.74 t= 607 n=1  +1.80     
+09-24 22:00:00 out=down  L: down@0.59 t= 296 n=2  +2.12      B: down@0.59 t= 296 n=2  +1.87     
+09-24 22:30:00 out=down  L: up  @0.70 t= 640 n=1  -5.51      B: up  @0.70 t= 640 n=1  -5.51     
+09-24 22:45:00 out=up    L: up  @0.89 t= 435 n=1  +0.63      B: up  @0.89 t= 435 n=1  +0.63     
+09-24 23:00:00 out=up    L: up  @0.72 t= 654 n=1  +1.99      B: up  @0.72 t= 646 n=1  +1.99     
+09-24 23:15:00 out=up    L: up  @0.65 t= 738 n=2  +2.64      B: up  @0.65 t= 738 n=1  +2.78     
+09-24 23:30:00 out=down  L: up  @0.54 t= 763 n=2  -1.01      B: up  @0.54 t= 763 n=2  -1.01     
+09-24 23:45:00 out=down  L: down@0.72 t= 251 n=1  +0.53      B: down@0.72 t= 251 n=1  +0.53     
+09-25 00:00:00 out=up    L: up  @0.71 t= 739 n=1  +2.10      B: up  @0.71 t= 734 n=1  +2.10     
+09-25 00:15:00 out=up    L: down@0.61 t= 319 n=1  -5.25      B: down@0.78 t= 684 n=1  -5.48     
+09-25 00:30:00 out=down  L: up  @0.35 t= 129 n=2  -0.70      B: -                                 L-only
+09-25 00:45:00 out=down  L: up  @0.50 t= 638 n=1  -5.11      B: up  @0.50 t= 639 n=1  -5.10     
+09-25 01:00:00 out=up    L: up  @0.82 t= 534 n=1  +1.12      B: up  @0.82 t= 534 n=1  +1.12     
+09-25 01:15:00 out=down  L: up  @0.45 t= 825 n=1  -4.30      B: up  @0.45 t= 825 n=1  -4.30     
+09-25 01:30:00 out=down  L: down@0.79 t= 319 n=1  +1.36      B: down@0.79 t= 197 n=1  +1.36     
+09-25 01:45:00 out=up    L: up  @0.52 t= 838 n=2  +2.70      B: up  @0.52 t= 841 n=2  +2.69     
+09-25 02:00:00 out=up    L: down@0.55 t= 818 n=1  -5.49      B: down@0.55 t= 818 n=1  -5.57     
+09-25 02:15:00 out=down  L: down@0.84 t= 297 n=1  +0.97      B: down@0.73 t= 329 n=1  +1.90     
+09-25 02:30:00 out=down  L: down@0.68 t= 587 n=1  +2.42      B: down@0.68 t= 589 n=1  +2.42     
+09-25 03:00:00 out=up    L: down@0.54 t= 718 n=1  -5.57      B: down@0.54 t= 717 n=1  -5.57     
+09-25 03:15:00 out=down  L: down@0.50 t= 355 n=2  +2.74      B: down@0.50 t= 355 n=2  +2.77     
+09-25 03:30:00 out=up    L: up  @0.77 t= 604 n=1  +1.53      B: up  @0.77 t= 602 n=1  +1.53     
+09-25 03:45:00 out=down  L: up  @0.43 t= 510 n=2  -5.63      B: up  @0.43 t= 510 n=2  -5.63     
+09-25 04:00:00 out=down  L: down@0.56 t= 830 n=2  +2.50      B: down@0.56 t= 830 n=2  +2.51     
+09-25 04:15:00 out=up    L: up  @0.64 t= 632 n=1  +2.90      B: up  @0.64 t= 633 n=1  +2.90     
+09-25 04:30:00 out=up    L: up  @0.64 t= 844 n=1  +2.90      B: up  @0.64 t= 844 n=1  +2.90     
+09-25 04:45:00 out=down  L: up  @0.48 t= 824 n=2  -5.60      B: up  @0.48 t= 824 n=2  -5.26     
+09-25 05:00:00 out=down  L: up  @0.65 t= 779 n=1  -5.53      B: up  @0.65 t= 779 n=1  -5.53     
+09-25 05:15:00 out=down  L: up  @0.63 t= 806 n=1  -5.54      B: up  @0.63 t= 806 n=1  -5.54     
+09-25 05:30:00 out=up    L: down@0.72 t= 701 n=1  -5.51      B: down@0.72 t= 701 n=1  -5.51     
+09-25 05:45:00 out=down  L: up  @0.64 t= 822 n=1  -5.54      B: up  @0.64 t= 822 n=1  -5.54     
+09-25 06:00:00 out=down  L: up  @0.65 t= 533 n=1  -5.53      B: up  @0.64 t= 531 n=1  -5.54     
+09-25 06:15:00 out=up    L: down@0.37 t= 828 n=1  -5.64      B: down@0.37 t= 817 n=1  -5.61     
+09-25 06:30:00 out=down  L: down@0.74 t= 560 n=1  +1.80      B: down@0.74 t= 560 n=1  +1.80     
+09-25 06:45:00 out=up    L: down@0.49 t= 566 n=1  -4.25      B: down@0.48 t= 566 n=1  -4.38     
+09-25 07:00:00 out=down  L: up  @0.56 t= 834 n=1  -4.90      B: up  @0.56 t= 834 n=1  -4.80     
+09-25 08:15:00 out=up    L: up  @0.76 t= 713 n=1  +1.61      B: up  @0.73 t= 750 n=1  +1.90     
+09-25 08:30:00 out=down  L: down@0.86 t= 437 n=1  +0.83      B: down@0.84 t= 434 n=1  +0.97     
+09-25 08:45:00 out=up    L: down@0.58 t= 814 n=1  -5.56      B: down@0.58 t= 814 n=1  -4.99     
+09-25 09:00:00 out=up    L: up  @0.86 t= 640 n=1  +0.83      B: up  @0.86 t= 640 n=1  +0.83     
+09-25 09:45:00 out=down  L: down@0.63 t= 562 n=2  +2.16      B: down@0.63 t= 562 n=2  +2.24     
+09-25 10:15:00 out=up    L: down@0.65 t= 670 n=1  -5.53      B: down@0.65 t= 664 n=1  -5.53     
+09-25 10:30:00 out=up    L: down@0.57 t= 297 n=1  -5.25      B: down@0.57 t= 297 n=1  -5.25     
+09-25 10:45:00 out=down  L: down@0.50 t= 725 n=2  +5.30      B: down@0.50 t= 725 n=2  +5.30     
+09-25 11:00:00 out=up    L: up  @0.67 t= 781 n=1  +2.53      B: up  @0.67 t= 781 n=1  +2.53     
+09-25 11:30:00 out=down  L: down@0.74 t= 703 n=1  +1.80      B: down@0.74 t= 702 n=1  +1.80     
+09-25 12:00:00 out=down  L: up  @0.39 t= 194 n=2  -5.61      B: up  @0.64 t= 476 n=1  -3.41     
+09-25 12:15:00 out=up    L: down@0.63 t= 170 n=1  -5.54      B: down@0.63 t= 174 n=1  -5.54     
+09-25 12:30:00 out=up    L: down@0.19 t= 225 n=2  -4.64      B: down@0.33 t= 129 n=2  -5.66     
+09-25 12:45:00 out=up    L: up  @0.62 t= 207 n=1  +3.17      B: up  @0.67 t= 253 n=1  +2.53     
+09-25 13:00:00 out=down  L: up  @0.64 t= 546 n=1  -5.54      B: up  @0.64 t= 546 n=1  -5.54     
+09-25 13:30:00 out=down  L: up  @0.11 t= 128 n=1  -2.10      B: up  @0.12 t= 127 n=2  -3.03     
+09-25 13:45:00 out=up    L: down@0.49 t= 411 n=1  -5.59      B: down@0.49 t= 411 n=1  -5.59     
+09-25 16:15:00 out=up    L: down@0.49 t= 424 n=1  -5.55      B: down@0.49 t= 424 n=1  -5.56     
+09-25 16:30:00 out=down  L: up  @0.14 t= 178 n=1  -2.67      B: up  @0.19 t= 178 n=1  -1.81     
+09-25 17:15:00 out=down  L: up  @0.53 t= 843 n=1  -4.47      B: up  @0.59 t= 819 n=1  -5.10     
+09-25 17:30:00 out=up    L: up  @0.52 t= 483 n=2  +3.29      B: up  @0.52 t= 531 n=2  +4.66     
+09-25 18:00:00 out=up    L: -                                B: up  @0.77 t= 496 n=1  +1.53       B-only
+09-25 18:15:00 out=down  L: up  @0.60 t= 651 n=1  -5.55      B: up  @0.60 t= 651 n=1  -5.55     
+09-25 18:30:00 out=up    L: up  @0.50 t= 138 n=2  +0.39      B: up  @0.58 t= 727 n=2  +2.22     
+09-25 18:45:00 out=down  L: -                                B: down@0.59 t= 669 n=1  +3.60       B-only
+09-25 19:00:00 out=up    L: -                                B: down@0.61 t= 580 n=1  -4.83       B-only
+09-25 19:15:00 out=down  L: -                                B: down@0.64 t= 810 n=2  +2.66       B-only
+09-25 19:30:00 out=down  L: -                                B: up  @0.58 t= 733 n=2  -0.29       B-only
+09-25 19:45:00 out=up    L: -                                B: up  @0.67 t= 657 n=1  +2.53       B-only
+09-25 20:00:00 out=down  L: -                                B: down@0.90 t= 409 n=1  +0.56       B-only
+09-25 20:15:00 out=up    L: -                                B: up  @0.61 t= 731 n=2  +1.14       B-only
+09-25 20:30:00 out=up    L: up  @0.57 t= 425 n=1  +1.94      B: down@0.56 t= 824 n=2  -0.04       OPP
+09-25 20:45:00 out=down  L: -                                B: down@0.68 t= 758 n=1  +2.42       B-only
+09-25 21:15:00 out=up    L: up  @0.44 t= 452 n=2  +2.14      B: down@0.69 t= 725 n=1  -5.52       OPP
+09-25 21:30:00 out=up    L: up  @0.54 t= 813 n=2  +0.36      B: up  @0.54 t= 813 n=2  +4.43     
+09-25 21:45:00 out=down  L: up  @0.67 t= 787 n=2  -0.35      B: up  @0.67 t= 787 n=2  -0.75     
+09-25 22:15:00 out=down  L: up  @0.62 t= 785 n=2  -0.80      B: up  @0.62 t= 783 n=2  -0.94     
+09-25 22:30:00 out=up    L: -                                B: up  @0.85 t= 669 n=1  +0.90       B-only
+09-25 22:45:00 out=up    L: down@0.63 t= 538 n=2  +1.17      B: down@0.63 t= 542 n=2  +1.09     
+09-25 23:00:00 out=down  L: up  @0.61 t= 639 n=1  -4.33      B: up  @0.61 t= 639 n=1  -4.32     
+09-25 23:15:00 out=up    L: up  @0.59 t= 757 n=2  +1.92      B: up  @0.59 t= 757 n=2  +1.91     
+09-25 23:30:00 out=down  L: -                                B: down@0.56 t= 617 n=1  +1.90       B-only
+09-25 23:45:00 out=up    L: down@0.41 t= 542 n=2  -0.52      B: down@0.41 t= 542 n=2  -0.37     
+09-26 00:00:00 out=down  L: down@0.66 t= 724 n=2  +1.92      B: down@0.66 t= 724 n=1  +2.65     
+09-26 00:15:00 out=down  L: down@0.62 t= 664 n=2  +0.26      B: down@0.62 t= 664 n=1  +2.12     
+09-26 00:45:00 out=down  L: up  @0.55 t= 818 n=2  -0.94      B: up  @0.55 t= 818 n=2  -0.99     
+09-26 01:00:00 out=up    L: up  @0.81 t= 741 n=1  +1.19      B: up  @0.81 t= 740 n=1  +1.19     
+09-26 01:15:00 out=up    L: up  @0.71 t= 732 n=1  +2.10      B: up  @0.73 t= 741 n=1  +1.15     
+09-26 01:30:00 out=up    L: up  @0.53 t= 743 n=2  +1.02      B: up  @0.53 t= 743 n=2  +1.02     
+09-26 01:45:00 out=up    L: up  @0.62 t= 797 n=1  +3.15      B: up  @0.62 t= 797 n=1  +3.15     
+09-26 02:00:00 out=up    L: up  @0.45 t= 869 n=3  +6.88      B: up  @0.45 t= 869 n=3  +6.86     
+09-26 02:15:00 out=down  L: down@0.51 t= 773 n=1  +1.14      B: down@0.51 t= 773 n=1  +1.14     
+09-26 02:30:00 out=down  L: down@0.59 t= 646 n=2  +2.12      B: down@0.59 t= 646 n=2  +2.12     
+09-26 02:45:00 out=down  L: -                                B: up  @0.45 t= 764 n=1  -3.82       B-only
+09-26 03:00:00 out=down  L: down@0.53 t= 807 n=2  +1.00      B: down@0.56 t= 798 n=2  +2.70     
+09-26 03:15:00 out=up    L: down@0.43 t= 873 n=2  -5.61      B: down@0.43 t= 873 n=2  -5.62     
+09-26 03:30:00 out=down  L: up  @0.61 t= 798 n=2  -5.58      B: up  @0.61 t= 804 n=1  -4.87     
+09-26 03:45:00 out=down  L: down@0.55 t= 587 n=2  +0.35      B: down@0.55 t= 587 n=2  +0.35     
+09-26 04:00:00 out=up    L: up  @0.54 t= 863 n=2  +4.51      B: up  @0.54 t= 863 n=2  +4.51     
+09-26 04:15:00 out=down  L: up  @0.68 t= 759 n=1  -5.52      B: up  @0.68 t= 759 n=1  -5.52     
+09-26 04:30:00 out=up    L: up  @0.65 t= 626 n=1  +2.78      B: up  @0.65 t= 630 n=2  +1.98     
+09-26 04:45:00 out=up    L: down@0.38 t= 706 n=3  -5.64      B: down@0.38 t= 706 n=3  -5.64     
+09-26 05:00:00 out=down  L: up  @0.60 t= 830 n=2  -0.59      B: up  @0.60 t= 830 n=2  -0.59     
+09-26 05:15:00 out=down  L: down@0.65 t= 796 n=1  +1.50      B: down@0.65 t= 796 n=1  +1.50     
+09-26 05:30:00 out=up    L: down@0.53 t= 796 n=2  -0.75      B: down@0.61 t= 767 n=1  -3.86     
+09-26 05:45:00 out=down  L: up  @0.67 t= 669 n=1  -4.59      B: up  @0.67 t= 665 n=1  -4.60     
+09-26 06:00:00 out=down  L: up  @0.52 t= 803 n=2  -5.58      B: up  @0.52 t= 802 n=2  -5.58     
+09-26 06:15:00 out=up    L: up  @0.56 t= 793 n=2  +1.33      B: up  @0.56 t= 793 n=2  +1.42     
+09-26 06:30:00 out=down  L: up  @0.52 t= 801 n=2  -1.09      B: up  @0.52 t= 801 n=2  -1.07     
+09-26 06:45:00 out=down  L: up  @0.53 t= 780 n=2  -0.68      B: up  @0.53 t= 780 n=2  -0.68     
+09-26 07:15:00 out=up    L: down@0.64 t= 760 n=1  -4.52      B: down@0.64 t= 760 n=1  -4.52     
+09-26 07:30:00 out=up    L: up  @0.52 t= 549 n=2  +1.85      B: up  @0.55 t= 549 n=2  +0.29     
+09-26 07:45:00 out=up    L: up  @0.65 t= 815 n=2  +2.14      B: up  @0.65 t= 815 n=2  +1.92     
+09-26 08:00:00 out=down  L: down@0.85 t= 584 n=1  +0.90      B: down@0.84 t= 577 n=1  +0.96     
+09-26 08:15:00 out=up    L: down@0.35 t= 824 n=2  -5.65      B: down@0.35 t= 824 n=2  -5.65     
+09-26 08:45:00 out=down  L: down@0.77 t= 709 n=1  +1.53      B: down@0.77 t= 709 n=1  +1.53     
+09-26 09:00:00 out=down  L: down@0.59 t= 796 n=2  +0.43      B: down@0.59 t= 796 n=2  +0.43     
+09-26 09:15:00 out=up    L: down@0.50 t= 632 n=1  -4.88      B: down@0.50 t= 632 n=1  -4.87     
+09-26 09:30:00 out=down  L: down@0.59 t= 801 n=1  +3.60      B: down@0.53 t= 735 n=2  +3.24     
+09-26 09:45:00 out=down  L: down@0.38 t= 877 n=2  +1.27      B: down@0.38 t= 878 n=2  +1.27     
+09-26 10:00:00 out=up    L: down@0.31 t= 843 n=2  -5.45      B: down@0.31 t= 843 n=2  -5.41     
+09-26 10:15:00 out=up    L: up  @0.79 t= 672 n=1  +1.36      B: up  @0.79 t= 673 n=1  +1.36     
+09-26 10:30:00 out=up    L: down@0.67 t= 597 n=2  -5.55      B: down@0.64 t= 593 n=2  -5.52     
+09-26 10:45:00 out=up    L: up  @0.69 t= 760 n=2  +1.68      B: up  @0.69 t= 757 n=2  +1.86     
+09-26 11:00:00 out=up    L: up  @0.56 t= 842 n=2  +0.62      B: up  @0.56 t= 842 n=2  +0.64     
+09-26 11:15:00 out=down  L: up  @0.62 t= 789 n=2  -5.56      B: up  @0.62 t= 786 n=2  -5.56     
+09-26 11:30:00 out=up    L: down@0.41 t= 886 n=2  -4.28      B: down@0.41 t= 887 n=2  -4.28     
+09-26 11:45:00 out=down  L: down@0.55 t= 706 n=2  +5.88      B: down@0.55 t= 706 n=2  +5.88     
+09-26 12:00:00 out=down  L: down@0.57 t= 788 n=2  +0.63      B: down@0.57 t= 788 n=2  +0.63     
+09-26 12:15:00 out=down  L: up  @0.82 t= 714 n=1  -5.47      B: up  @0.82 t= 714 n=1  -5.47     
+09-26 12:30:00 out=down  L: down@0.40 t= 828 n=3  +5.01      B: down@0.40 t= 828 n=3  +5.01     
+09-26 12:45:00 out=up    L: up  @0.62 t= 790 n=2  +0.98      B: up  @0.62 t= 790 n=2  +0.98     
+09-26 13:00:00 out=down  L: up  @0.70 t= 703 n=1  -5.51      B: up  @0.70 t= 703 n=1  -5.51     
+09-26 13:15:00 out=down  L: up  @0.56 t= 482 n=1  -4.96      B: up  @0.56 t= 482 n=1  -4.90     
+09-26 13:30:00 out=up    L: down@0.48 t= 828 n=2  -5.61      B: down@0.48 t= 828 n=2  -5.60     
+09-26 13:45:00 out=up    L: down@0.44 t= 694 n=2  -5.63      B: down@0.44 t= 694 n=2  -5.63     
+09-26 14:00:00 out=None  L: down@0.42 t= 751 n=2   +nan      B: down@0.42 t= 753 n=2   +nan     
+09-26 14:15:00 out=None  L: up  @0.65 t= 827 n=1   +nan      B: up  @0.65 t= 827 n=1   +nan     
+09-26 14:45:00 out=up    L: down@0.52 t= 797 n=1  -5.11      B: down@0.52 t= 797 n=1  -5.11     
+09-26 15:00:00 out=up    L: up  @0.55 t= 824 n=2  +1.51      B: up  @0.52 t= 825 n=2  +2.86     
+09-26 15:15:00 out=up    L: up  @0.62 t= 786 n=1  +2.16      B: up  @0.62 t= 786 n=2  +0.36     
+09-26 15:30:00 out=up    L: up  @0.49 t= 883 n=2  +1.11      B: up  @0.49 t= 883 n=2  +1.37     
+09-26 15:45:00 out=up    L: down@0.58 t= 801 n=1  -5.48      B: down@0.58 t= 801 n=1  -5.48     
+09-26 16:00:00 out=down  L: up  @0.49 t= 887 n=2  -0.93      B: up  @0.49 t= 887 n=2  -0.97     
+09-26 16:15:00 out=down  L: down@0.60 t= 753 n=2  -0.45      B: down@0.60 t= 753 n=2  -0.43     
+09-26 16:30:00 out=up    L: up  @0.70 t= 740 n=1  +2.20      B: up  @0.70 t= 742 n=1  +2.20     
+09-26 16:45:00 out=down  L: down@0.58 t= 840 n=2  +1.12      B: down@0.58 t= 841 n=2  +1.73     
+09-26 17:00:00 out=down  L: up  @0.50 t= 768 n=1  -4.34      B: up  @0.51 t= 789 n=2  -5.60     
+09-26 17:15:00 out=down  L: down@0.73 t= 771 n=1  +1.90      B: down@0.73 t= 771 n=1  +1.90     
+09-26 17:30:00 out=up    L: down@0.51 t= 775 n=2  -5.61      B: down@0.51 t= 779 n=2  -5.60     
+09-26 17:45:00 out=up    L: up  @0.69 t= 754 n=2  +0.60      B: up  @0.69 t= 742 n=2  +1.35     
+09-26 18:00:00 out=down  L: up  @0.38 t= 848 n=3  -5.64      B: up  @0.38 t= 848 n=3  -5.64     
+09-26 18:15:00 out=down  L: down@0.61 t= 849 n=2  +0.42      B: down@0.61 t= 849 n=2  +1.25     
+09-26 18:30:00 out=down  L: down@0.45 t= 766 n=1  +3.89      B: down@0.46 t= 768 n=1  +3.73     
+09-26 18:45:00 out=down  L: up  @0.44 t= 763 n=2  -5.62      B: up  @0.42 t= 770 n=2  -5.59     
+09-26 19:00:00 out=up    L: up  @0.74 t= 796 n=1  +1.80      B: up  @0.74 t= 823 n=1  +1.80     
+09-26 19:15:00 out=up    L: up  @0.59 t= 658 n=2  -0.03      B: up  @0.61 t= 658 n=2  +3.94     
+09-26 19:30:00 out=down  L: down@0.65 t= 842 n=2  +0.43      B: down@0.60 t= 837 n=2  +2.36     
+09-26 19:45:00 out=up    L: down@0.44 t= 722 n=4  -5.48      B: down@0.44 t= 722 n=4  -5.53     
+09-26 20:00:00 out=down  L: up  @0.73 t= 646 n=1  -5.50      B: up  @0.73 t= 646 n=1  -5.50     
+09-26 20:15:00 out=up    L: up  @0.69 t= 807 n=2  +0.43      B: up  @0.69 t= 807 n=2  +0.44     
+09-26 20:30:00 out=down  L: up  @0.55 t= 842 n=2  -5.58      B: up  @0.51 t= 847 n=2  -1.09     
+09-26 20:45:00 out=up    L: -                                B: down@0.29 t= 753 n=1  -4.54       B-only
+09-26 21:00:00 out=up    L: up  @0.60 t= 752 n=2  +0.71      B: up  @0.60 t= 752 n=2  +0.71     
+09-26 21:15:00 out=up    L: up  @0.60 t= 792 n=2  +1.80      B: up  @0.60 t= 792 n=2  +1.80     
+09-26 21:30:00 out=down  L: down@0.44 t= 775 n=2  +6.01      B: down@0.44 t= 775 n=2  +6.02     
+09-26 21:45:00 out=down  L: down@0.64 t= 468 n=1  +2.90      B: down@0.64 t= 469 n=1  +2.90     
+09-26 22:00:00 out=up    L: up  @0.71 t= 765 n=1  +2.10      B: up  @0.70 t= 773 n=1  +2.20     
+09-26 22:15:00 out=up    L: down@0.71 t= 715 n=1  -5.51      B: down@0.71 t= 715 n=1  -5.51     
+09-26 22:30:00 out=down  L: down@0.80 t= 673 n=1  +1.27      B: down@0.80 t= 673 n=1  +1.27     
+09-26 22:45:00 out=down  L: up  @0.43 t= 793 n=2  -0.17      B: up  @0.43 t= 793 n=2  -0.17     
+09-26 23:00:00 out=up    L: up  @0.78 t= 788 n=1  +1.44      B: up  @0.78 t= 788 n=1  +1.44     
+09-26 23:15:00 out=up    L: up  @0.76 t= 374 n=1  +1.61      B: up  @0.76 t= 374 n=1  +1.61     
+09-26 23:30:00 out=down  L: up  @0.77 t= 582 n=1  -5.49      B: up  @0.77 t= 586 n=1  -5.49     
+09-26 23:45:00 out=up    L: up  @0.75 t= 646 n=1  +1.71      B: up  @0.75 t= 646 n=1  +1.71     
+09-27 00:00:00 out=down  L: down@0.86 t= 526 n=1  +0.83      B: down@0.86 t= 526 n=1  +0.83     
+09-27 00:15:00 out=down  L: down@0.69 t= 751 n=2  +1.92      B: down@0.69 t= 751 n=2  +1.91     
+09-27 00:30:00 out=up    L: up  @0.69 t= 736 n=1  +2.31      B: up  @0.69 t= 736 n=1  +2.31     
+09-27 00:45:00 out=down  L: down@0.60 t= 744 n=2  +1.28      B: down@0.60 t= 744 n=2  +1.28     
+09-27 01:00:00 out=up    L: down@0.59 t= 773 n=1  -3.29      B: down@0.59 t= 787 n=2  -0.64     
+09-27 01:15:00 out=down  L: up  @0.60 t= 814 n=1  -4.64      B: up  @0.60 t= 815 n=1  -4.64     
+09-27 01:30:00 out=up    L: up  @0.56 t= 738 n=2  +0.91      B: up  @0.56 t= 750 n=1  +1.90     
+09-27 01:45:00 out=up    L: up  @0.67 t= 834 n=2  +2.28      B: up  @0.67 t= 834 n=1  +2.53     
+09-27 02:00:00 out=down  L: down@0.65 t= 722 n=1  +2.78      B: down@0.65 t= 722 n=1  +2.78     
+09-27 02:15:00 out=up    L: down@0.50 t= 722 n=2  -5.61      B: down@0.50 t= 722 n=2  -5.61     
+09-27 02:30:00 out=down  L: down@0.45 t= 870 n=2  +6.39      B: down@0.45 t= 870 n=2  +6.39     
+09-27 02:45:00 out=down  L: up  @0.43 t= 780 n=3  -5.64      B: up  @0.43 t= 780 n=3  -5.62     
+09-27 03:00:00 out=up    L: up  @0.66 t= 740 n=2  +1.31      B: up  @0.66 t= 746 n=2  +1.35     
+09-27 03:15:00 out=down  L: down@0.66 t= 786 n=2  +1.17      B: down@0.66 t= 786 n=1  +2.18     
+09-27 03:30:00 out=up    L: down@0.38 t= 857 n=2  -4.90      B: down@0.38 t= 857 n=2  -4.90     
+09-27 03:45:00 out=up    L: up  @0.36 t= 589 n=2  +9.36      B: up  @0.36 t= 589 n=2  +9.36     
+09-27 04:00:00 out=up    L: up  @0.41 t= 850 n=2  +3.63      B: up  @0.46 t= 783 n=2  +6.25     
+09-27 04:15:00 out=down  L: up  @0.39 t= 743 n=2  -0.11      B: up  @0.41 t= 748 n=3  -5.65     
+09-27 04:30:00 out=down  L: down@0.85 t= 733 n=1  +0.90      B: -                                 L-only
+09-27 04:45:00 out=up    L: down@0.50 t= 777 n=2  -5.62      B: down@0.50 t= 777 n=2  -5.61     
+09-27 05:00:00 out=up    L: up  @0.48 t= 768 n=2  +2.60      B: up  @0.48 t= 768 n=2  +2.59     
+09-27 05:15:00 out=up    L: down@0.40 t= 722 n=2  -4.87      B: down@0.40 t= 722 n=2  -4.87     
+09-27 05:30:00 out=up    L: up  @0.43 t= 872 n=3  +5.08      B: up  @0.43 t= 872 n=3  +5.15     
+09-27 05:45:00 out=down  L: down@0.56 t= 660 n=2  +1.15      B: down@0.56 t= 662 n=2  +1.09     
+09-27 06:00:00 out=up    L: up  @0.54 t= 755 n=2  +2.19      B: up  @0.54 t= 755 n=2  +2.19     
+09-27 06:15:00 out=up    L: up  @0.25 t= 798 n=2  +0.07      B: up  @0.65 t= 276 n=1  +2.78     
+09-27 06:30:00 out=down  L: up  @0.42 t= 807 n=1  -2.41      B: up  @0.42 t= 807 n=1  -4.09     
+09-27 06:45:00 out=up    L: down@0.37 t= 849 n=2  -5.64      B: down@0.37 t= 849 n=2  -5.64     
+09-27 07:00:00 out=up    L: up  @0.57 t= 756 n=2  +2.68      B: up  @0.57 t= 756 n=2  +2.70     
+09-27 07:15:00 out=up    L: down@0.35 t= 729 n=2  +0.46      B: down@0.35 t= 729 n=2  -1.14     
+09-27 07:45:00 out=up    L: up  @0.42 t= 639 n=2  +2.75      B: up  @0.42 t= 639 n=2  +2.75     
+09-27 08:00:00 out=up    L: up  @0.80 t= 434 n=1  +1.27      B: up  @0.80 t= 434 n=1  +1.27     
+09-27 08:15:00 out=up    L: down@0.46 t= 594 n=2  -0.86      B: down@0.46 t= 594 n=2  -0.78     
+09-27 08:30:00 out=down  L: up  @0.61 t= 713 n=1  -5.52      B: up  @0.61 t= 713 n=1  -5.52     
+09-27 08:45:00 out=up    L: down@0.35 t= 804 n=2  -5.65      B: down@0.35 t= 807 n=2  -5.65     
+09-27 09:00:00 out=down  L: down@0.81 t= 681 n=1  +1.19      B: down@0.80 t= 682 n=1  +1.27     
+09-27 09:15:00 out=up    L: up  @0.32 t= 756 n=2 +10.75      B: up  @0.34 t= 708 n=2  +5.54     
+09-27 09:30:00 out=up    L: up  @0.64 t= 779 n=2  +1.90      B: up  @0.64 t= 779 n=2  +1.89     
+09-27 10:00:00 out=up    L: down@0.49 t= 858 n=1  -4.93      B: down@0.47 t= 858 n=1  -5.25     
+09-27 10:30:00 out=down  L: down@0.62 t= 797 n=2  +2.61      B: down@0.62 t= 797 n=2  +2.44     
+09-27 10:45:00 out=up    L: down@0.51 t= 720 n=2  -0.04      B: down@0.51 t= 720 n=2  +0.15     
+09-27 11:00:00 out=up    L: down@0.57 t= 804 n=2  -5.58      B: down@0.57 t= 806 n=2  -5.58     
+09-27 11:15:00 out=up    L: down@0.80 t= 685 n=1  -5.45      B: down@0.58 t= 778 n=1  -5.21     
+09-27 11:30:00 out=down  L: down@0.79 t= 650 n=1  +1.36      B: down@0.79 t= 650 n=1  +1.36     
+09-27 11:45:00 out=down  L: down@0.56 t= 803 n=2  +1.71      B: down@0.56 t= 796 n=2  +1.88     
+09-27 12:00:00 out=up    L: up  @0.81 t= 736 n=1  +1.19      B: up  @0.81 t= 741 n=1  +1.19     
+09-27 12:15:00 out=down  L: down@0.48 t= 482 n=2  +3.86      B: down@0.58 t= 459 n=2  +1.83     
+09-27 12:30:00 out=up    L: down@0.36 t= 742 n=2  -5.58      B: down@0.34 t= 743 n=2  -5.65     
+09-27 12:45:00 out=down  L: down@0.59 t= 844 n=2  +1.25      B: down@0.56 t= 847 n=2  +1.93     
+09-27 13:00:00 out=down  L: up  @0.31 t= 377 n=2  -5.66      B: up  @0.31 t= 377 n=2  -5.66     
+09-27 13:45:00 out=up    L: up  @0.89 t= 440 n=1  +0.63      B: up  @0.89 t= 440 n=1  +0.63     
+09-27 14:00:00 out=down  L: up  @0.50 t= 253 n=1  -3.48      B: -                                 L-only
+09-27 14:15:00 out=down  L: up  @0.55 t= 841 n=1  -4.20      B: up  @0.55 t= 841 n=1  -4.24     
+09-27 14:30:00 out=up    L: down@0.34 t= 458 n=2  -5.66      B: down@0.35 t= 460 n=2  -5.65     
+09-27 15:00:00 out=down  L: up  @0.28 t= 269 n=2  -5.65      B: up  @0.28 t= 269 n=2  -5.65     
+09-27 15:15:00 out=up    L: down@0.23 t= 513 n=2  -4.36      B: down@0.09 t= 212 n=2  -2.58     
+09-27 15:45:00 out=up    L: up  @0.58 t= 760 n=1  +2.69      B: up  @0.58 t= 760 n=1  +2.69     
+09-27 16:00:00 out=up    L: down@0.24 t= 733 n=2  -4.35      B: down@0.26 t= 738 n=2  -3.95     
+09-27 16:15:00 out=up    L: down@0.38 t= 867 n=2  -5.26      B: down@0.39 t= 867 n=3  -5.61     
+09-27 16:45:00 out=up    L: up  @0.85 t= 370 n=1  +0.90      B: up  @0.85 t= 370 n=1  +0.90     
+09-27 17:00:00 out=down  L: up  @0.40 t= 837 n=2  -4.33      B: up  @0.37 t= 836 n=2  -5.64     
+09-27 17:15:00 out=up    L: up  @0.77 t= 747 n=1  +1.53      B: up  @0.77 t= 747 n=1  +1.53     
+09-27 17:30:00 out=up    L: down@0.41 t= 852 n=3  -5.15      B: down@0.41 t= 852 n=3  -5.15     
+09-27 17:45:00 out=up    L: up  @0.77 t= 754 n=1  +1.53      B: up  @0.77 t= 754 n=1  +1.53     
+09-27 18:00:00 out=up    L: down@0.49 t= 886 n=2  -5.60      B: down@0.49 t= 886 n=1  -2.76     
+09-27 18:15:00 out=up    L: up  @0.69 t= 750 n=2  +2.06      B: up  @0.69 t= 750 n=1  +2.24     
+09-27 18:30:00 out=up    L: down@0.36 t= 896 n=2  -5.64      B: down@0.36 t= 895 n=2  -3.43     
+09-27 18:45:00 out=up    L: down@0.38 t= 598 n=2  -3.70      B: down@0.49 t= 834 n=2  -5.61     
+09-27 19:00:00 out=down  L: down@0.86 t= 624 n=1  +0.83      B: down@0.86 t= 624 n=1  +0.83     
+09-27 19:15:00 out=down  L: up  @0.49 t= 869 n=2  -1.03      B: up  @0.51 t= 868 n=2  -1.06     
+09-27 19:30:00 out=up    L: down@0.53 t= 818 n=1  -4.48      B: down@0.54 t= 814 n=1  -4.40     
+09-27 19:45:00 out=down  L: up  @0.63 t= 864 n=1  -5.32      B: up  @0.62 t= 862 n=1  -5.07     
+09-27 20:00:00 out=up    L: up  @0.61 t= 847 n=2  +0.93      B: up  @0.57 t= 853 n=2  +2.53     
+09-27 20:15:00 out=down  L: down@0.63 t= 714 n=2  +1.11      B: down@0.63 t= 732 n=2  +1.40     
+09-27 20:30:00 out=up    L: up  @0.69 t= 801 n=2  +1.73      B: up  @0.69 t= 801 n=2  +1.69     
+09-27 21:00:00 out=up    L: up  @0.65 t= 807 n=2  +0.93      B: up  @0.65 t= 807 n=2  +0.93     
+09-27 21:15:00 out=down  L: down@0.54 t= 465 n=2  +0.66      B: down@0.54 t= 465 n=2  +0.66     
+09-27 21:30:00 out=down  L: up  @0.46 t= 790 n=1  -4.02      B: up  @0.44 t= 768 n=1  -4.34     
+09-27 21:45:00 out=up    L: up  @0.85 t= 749 n=1  +0.90      B: up  @0.85 t= 746 n=1  +0.90     
+09-27 22:45:00 out=up    L: down@0.63 t= 809 n=1  -5.52      B: down@0.62 t= 812 n=1  -5.54     
+09-27 23:00:00 out=up    L: up  @0.40 t= 197 n=2  +6.78      B: up  @0.40 t= 197 n=2  +6.75     
+09-27 23:15:00 out=up    L: up  @0.79 t= 509 n=1  +1.36      B: -                                 L-only
+09-27 23:30:00 out=down  L: up  @0.70 t= 752 n=1  -5.51      B: up  @0.70 t= 751 n=1  -5.51     
+09-27 23:45:00 out=up    L: up  @0.65 t= 791 n=1  +2.78      B: up  @0.65 t= 791 n=1  +2.78     
+09-28 01:45:00 out=down  L: up  @0.13 t= 191 n=2  -0.44      B: up  @0.13 t= 191 n=2  -0.27     
+09-28 02:00:00 out=up    L: up  @0.65 t= 149 n=1  +2.77      B: up  @0.65 t= 149 n=1  +2.77     
+09-28 03:00:00 out=up    L: down@0.24 t= 229 n=2  -1.10      B: down@0.24 t= 229 n=2  -1.11     
+09-28 03:45:00 out=down  L: up  @0.41 t= 722 n=2  -5.64      B: up  @0.18 t= 411 n=1  -3.43     
+09-28 04:00:00 out=up    L: up  @0.68 t= 203 n=1  +2.41      B: up  @0.68 t= 203 n=1  +2.41     
+09-28 04:15:00 out=up    L: up  @0.76 t= 551 n=1  +1.61      B: up  @0.76 t= 551 n=1  +1.61     
+09-28 04:30:00 out=up    L: down@0.63 t= 690 n=1  -5.54      B: down@0.63 t= 690 n=1  -5.54     
+09-28 04:45:00 out=up    L: down@0.55 t= 844 n=1  -4.25      B: down@0.55 t= 844 n=2  -1.00     
+09-28 05:15:00 out=down  L: down@0.76 t= 495 n=1  +1.61      B: down@0.76 t= 500 n=1  +1.61     
+09-28 05:30:00 out=up    L: up  @0.28 t= 129 n=2  +4.03      B: up  @0.28 t= 129 n=2  +4.03     
+09-28 05:45:00 out=up    L: down@0.68 t= 519 n=1  -5.52      B: down@0.68 t= 520 n=1  -5.52     
+09-28 06:00:00 out=up    L: down@0.58 t= 830 n=1  -2.69      B: down@0.58 t= 834 n=1  -2.69     
+09-28 06:30:00 out=up    L: up  @0.82 t= 517 n=1  +1.12      B: up  @0.81 t= 512 n=1  +1.19     
+09-28 06:45:00 out=down  L: up  @0.54 t= 827 n=1  -2.51      B: up  @0.54 t= 827 n=1  -2.51     

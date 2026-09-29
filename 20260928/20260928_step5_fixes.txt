@@ -1,0 +1,98 @@
+-----------------------29 Sep 2026
+Step 5 of the Sep 28 plan: test candidate fixes on data they weren't built from.
+
+PRE-REGISTRATION (written before any variant was run)
+
+Data
+  var/poly15m.db (server copy, ends Sep 28 07:15 UTC). All windows with open_price and book data, opening Aug 3 onward.
+  train = windows opening Aug 3 - Sep 22 UTC
+  test  = windows opening Sep 23 UTC onward (~485 windows)
+  Every variant replays the full range once with current code and .env settings
+  (kelly_fraction=0.015, min_edge_to_trade=0.05, uncertainty_buffer_base=0.05,
+  use_calibrated_fair_value=false). Only one setting changes per variant.
+
+Variants (one change each, no combinations)
+  base        no change
+  maxT480     no new directional entries with more than 480 s left
+  maxT600     no new directional entries with more than 600 s left
+  volmin1.5   no new directional entries when sigma < 1.5  (train q25 of sigma)
+  volmin2.4   no new directional entries when sigma < 2.4  (train median of sigma)
+  floor1.5    sigma floored at 1.5 in both the deviation z-score and the uncertainty buffer
+  floor2.4    sigma floored at 2.4 in both
+  Sigma thresholds come from the train-period sigma distribution (model inputs, not outcomes).
+  Hedges and matched-arb trades are unaffected by the entry filters.
+
+Selection rule (train only)
+  1. Pick the variant with the highest total train PnL.
+  2. Accept it only if its per-window paired improvement over base on train has t >= 2.
+     Otherwise: no fix selected.
+Test verdict (for the selected variant only)
+  PASS if test PnL > 0 AND paired improvement vs base on test has t >= 1.0. Otherwise FAIL.
+  Other variants' test results are shown for information and cannot change the choice.
+
+Known limits, stated up front
+  - Sep 8 - 22 was already looked at in earlier analysis, and the Sep 28 notes proposed these
+    three fixes after looking at Sep 23 - 28 losses. So "test" is not fully unseen: the candidates
+    were suggested by the test period. A PASS here is necessary, not sufficient. The real test is
+    the step 6 forward paper run.
+  - Test is about 5 days (~350 traded windows). Only a large improvement can reach paired t >= 1.
+  - Both live and backtest ignore CLOB price_change messages (clob_ws.py). Results may shift once that's fixed.
+
+-----------------------RESULTS 29 Sep 2026 17:02
+windows: train 2168, test 482 (resolved, present in every variant run)
+variants run: base, maxT480, maxT600, volmin1.5, volmin2.4, floor1.5, floor2.4
+
+=== TRAIN Aug 3 - Sep 22 ===
+variant    traded     PnL$    /win      t  vs base paired t
+base         1601  +304.77  +0.141   2.00    +0.00      nan
+maxT480      1309  +110.97  +0.051   0.78  -193.80    -1.41
+maxT600      1446  +306.46  +0.141   2.08    +1.69     0.02
+volmin1.5    1193  +539.11  +0.249   3.61  +234.34     2.00
+volmin2.4     558  +383.43  +0.177   3.20   +78.66     0.57
+floor1.5     1379  +523.15  +0.241   3.23  +218.38     1.83
+floor2.4      909  +551.03  +0.254   3.11  +246.25     1.41
+
+=== TEST Sep 23 onward ===
+variant    traded     PnL$    /win      t  vs base paired t
+base          356  -193.96  -0.402  -2.72    +0.00      nan
+maxT480       286  -139.10  -0.289  -2.06   +54.86     0.78
+maxT600       300  -208.82  -0.433  -3.20   -14.86    -0.27
+volmin1.5     290  -229.78  -0.477  -3.32   -35.82    -0.71
+volmin2.4     152  -107.41  -0.223  -1.85   +86.55     1.26
+floor1.5      303  -274.95  -0.570  -3.92   -80.98    -1.71
+floor2.4      239  -133.10  -0.276  -1.59   +60.86     0.74
+
+=== PRE-REGISTERED DECISION ===
+No fix selected (best on train is floor2.4 with paired t 1.41 < 2).
+
+-----------------------INTERPRETATION 29 Sep 2026
+Verdict under the pre-registered rule: NO FIX SELECTED. Step 5 fails.
+
+  - The highest train PnL is floor2.4 (+$246 vs base), but its paired t of 1.41 is below the required 2.
+  - Every variant, including base, loses money on test (Sep 23 onward). None would PASS even if
+    selected: the best test result (volmin2.4, -$107) is still a loss.
+  - Train rankings don't carry over to test. The two strongest train improvements reverse:
+      volmin1.5  train +$234 (paired t 2.00)  ->  test -$36 vs base (paired t -0.71)
+      floor1.5   train +$218 (paired t 1.83)  ->  test -$81 vs base (paired t -1.71)
+    The only variant that cleared paired t >= 2 on train (volmin1.5, not selected because the rule
+    picks by total PnL) would also have failed on test (-$229.78).
+  - maxT480, the "no entries with more than 8 minutes left" idea from the Sep 28 notes, cut train PnL
+    from +$305 to +$111. The early entries were not what lost money on train.
+  - Every candidate works by trading less (fewer windows traded). On train that removes losing trades;
+    on test the remaining trades still lose. Filtering an unprofitable signal doesn't create an edge.
+
+What this means
+  - Together with step 4 (backtest matches live) and the tuning split (Aug 3 - Sep 7 in-sample),
+    there is still no evidence that this fair-value model has an edge outside the data it was tuned on.
+    Adding filters doesn't change that.
+  - Step 6 (a new forward paper run) has nothing to test: no fix passed, and base is known to lose.
+  - Options, in the order I'd consider them:
+      1. Fix CLOB price_change handling (the order book is currently only updated on snapshots), then
+         re-run base on the full history. That is a data fix, not tuning. If the edge is still absent,
+         the model itself is the problem.
+      2. Rethink the signal instead of filtering it. On Sep 26-28 the market was better calibrated
+         than the model. A variant that trades only where the model disagrees with a market that has
+         been measured as miscalibrated needs new analysis, not a new filter.
+      3. Stop this strategy and keep the recorder running (Binance + CLOB + Chainlink) for future work.
+  - None of the three new settings should be turned on live. They are off by default and can stay
+    in the code for future sweeps.

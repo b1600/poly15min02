@@ -85,3 +85,12 @@ def test_compute_edge_none_when_book_priced_above_fair_value():
         t_remaining=300.0, window_seconds=900.0, sigma=None, settings=SETTINGS,
     )
     assert result is None
+
+
+def test_sigma_floor_bounds_uncertainty_buffer_from_below():
+    s = Settings(sigma_floor=2.0)
+    floored = uncertainty_buffer(t_remaining=300.0, window_seconds=900.0, sigma=0.5, settings=s)
+    at_floor = uncertainty_buffer(t_remaining=300.0, window_seconds=900.0, sigma=2.0, settings=s)
+    above = uncertainty_buffer(t_remaining=300.0, window_seconds=900.0, sigma=3.0, settings=s)
+    assert math.isclose(floored, at_floor)
+    assert above > at_floor

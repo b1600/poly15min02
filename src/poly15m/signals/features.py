@@ -314,7 +314,7 @@ class FeatureEngine:
         sigma = _vol_from_bars(bars, s.vol_bar_seconds, s.vol_halflife_seconds, min_bars=10)
         deviation = None
         if sigma is not None and sigma > 0 and t_remaining > 0:
-            deviation = (spot - open_price) / (sigma * math.sqrt(t_remaining))
+            deviation = (spot - open_price) / (max(sigma, s.sigma_floor) * math.sqrt(t_remaining))
 
         momentum_1m = self._momentum(now, 60)
         momentum_3m = self._momentum(now, 180)

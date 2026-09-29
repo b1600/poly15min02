@@ -213,3 +213,24 @@ def test_drop_market_removes_inventory():
     dropped = pm.drop_market("cond1")
     assert dropped is not None
     assert "cond1" not in pm.inventory
+
+
+def _directional(settings, t_remaining=300.0, sigma=None):
+    pm = PositionManager(settings)
+    return pm._check_directional_kelly(
+        "cond1", "tok_up", "up", fair_p=0.7, asks=[(0.5, 1000.0)],
+        t_remaining=t_remaining, sigma=sigma, inv=pm.get_inventory("cond1"),
+    )
+
+
+def test_max_entry_t_remaining_blocks_early_directional_entries():
+    s = Settings(max_entry_t_remaining=480.0)
+    assert _directional(s, t_remaining=481.0) is None
+    assert _directional(s, t_remaining=480.0) is not None
+
+
+def test_min_sigma_to_trade_blocks_quiet_markets():
+    s = Settings(min_sigma_to_trade=1.5)
+    assert _directional(s, sigma=1.4) is None
+    assert _directional(s, sigma=None) is None
+    assert _directional(s, sigma=1.5) is not None

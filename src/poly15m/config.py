@@ -99,6 +99,12 @@ class Settings(BaseSettings):
     book_imbalance_depth: int = 10
     flow_lookback_seconds: float = 60.0
     clob_trade_buffer_seconds: float = 600.0
+    # price_change deltas update the in-memory book on every message, but the
+    # book is written to book_snapshots at most this often per token (plus the
+    # final state of each burst). The feed sends ~300-700 frames/s; one row per
+    # delta would be ~100 GB/day. At 0.5 s, plus the exchange's own "book"
+    # snapshots (always written), measured ~6.4 rows/s, ~0.8 GB/day.
+    clob_book_persist_interval_seconds: float = 0.5
     fair_value_log_interval_seconds: float = 1.0
     divergence_alert_threshold: float = 0.05
 
@@ -110,6 +116,13 @@ class Settings(BaseSettings):
     uncertainty_final_minute_extra: float = 0.05  # added on top, ramping in over the final minute
     sim_fill_ratio: float = 0.9  # haircut on walked size, modeling competing order flow
     min_edge_to_trade: float = 0.05  # required net_edge (probability units) before paper-trading it
+    # Step 5 candidate fixes (20260928 todo), all off by default. sigma_floor
+    # bounds sigma from below in both the deviation z-score and the
+    # uncertainty buffer, so a quiet market can't inflate |deviation| or
+    # shrink the buffer. The other two only gate new directional entries.
+    sigma_floor: float = 0.0  # $ per sqrt(second)
+    min_sigma_to_trade: float = 0.0  # skip directional entries when raw sigma is below this
+    max_entry_t_remaining: float | None = None  # skip directional entries with more seconds left than this
     # Shares per simulated order. This is *also* the size the book is
     # walked for when pricing an edge, so it must sit above the Kelly
     # stake it is meant to bound -- otherwise it silently becomes the

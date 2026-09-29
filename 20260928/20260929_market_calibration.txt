@@ -1,0 +1,208 @@
+-----------------------29 Sep 2026
+Point 2 after step 5: rethink the signal. Is the market itself miscalibrated, and does the
+fair-value model add information beyond the market price?
+
+PLAN (written before any test-period number was computed)
+
+Data: var/calib/dataset.csv (scripts/market_calibration.py build)
+  Each window with an official outcome, sampled at 840/720/600/480/360/240/180/120/60/30 s left.
+  Model state (spot, sigma, deviation, p_model) comes from the step 5 base replay (var/step5/base.db),
+  which uses the corrected open prices. Best bid/ask per token come from the recorded book_snapshots.
+  The book snapshot must be <= 30 s old. Rows missing a bid or ask on either token are dropped.
+  mid_up = (up_bid + up_ask) / 2. Probabilities are clipped to [0.01, 0.99] before taking logits.
+  train = windows opening Aug 3 - Sep 22 (17,864 usable rows, 2,139 windows)
+  test  = windows opening Sep 23 onward
+  Groups by time left: early 840/720/600, mid 480/360/240, late 180/120/60/30.
+  Uncertainty: window-level bootstrap (200 resamples) because rows in one window are correlated.
+
+A. Market calibration (descriptive, shown for both periods)
+   Per group: realized Up rate vs mid_up in 10 bins, and a logistic fit y ~ a + b*logit(mid_up).
+   a = 0 and b = 1 mean calibrated. b > 1 means the market is too timid (longshots overpriced
+   relative to favourites is b > 1 around the middle); b < 1 means it is overconfident.
+
+B. Does the model add information? (fit on train, scored on test)
+   Per group, fitted on train:
+     M0: y ~ a + b*logit(mid_up)                      (market, recalibrated)
+     M1: y ~ a + b*logit(mid_up) + c*logit(p_model)   (market + model)
+   Test log loss for: raw mid_up, raw p_model, M0, M1.
+   "Model adds information" only if the test log-loss difference M1 - M0 has a 95% bootstrap CI
+   entirely below 0.
+
+C. Is any of it tradeable?
+   Per group, use M1 if its 5-fold window-grouped cross-validated log loss on train beats M0,
+   otherwise M0. q = predicted P(Up).
+   For each window, walk the checkpoints in time order, using only rows whose book is <= 5 s old.
+   At the first checkpoint where either
+       q     - up_ask   - fee(up_ask)   > m     (buy Up), or
+       1 - q - down_ask - fee(down_ask) > m     (buy Down)
+   buy 1 share of the side with the larger edge at its ask. One entry per window.
+   PnL = (1 if that side won) - ask - fee, with fee = 0.07 * p * (1 - p) per share.
+   m is chosen from {0.02, 0.04, 0.06, 0.08} by train PnL (in-sample, so the train number is optimistic).
+   Test verdict for the chosen model and m:
+     PASS         test PnL > 0 and per-trade t >= 2
+     PROMISING    test PnL > 0 and 1 <= t < 2   (worth a forward paper run, not live money)
+     FAIL         otherwise
+   Also reported, for information only: the same rule using M0 alone (market bias, no model).
+
+Known limits, stated up front
+  - Top-of-book, 1 share: no depth, no queue, no latency. Quotes can be up to 5 s stale in C.
+  - Books come from snapshot-only recording (the price_change bug), so quotes are coarser than live.
+  - Sep 23 - 28 has been looked at before (steps 4 and 5), just not in this form. The test is not
+    fully unseen. A PASS here justifies a forward paper run, nothing more.
+
+-----------------------RESULTS 29 Sep 2026 17:16
+rows: train 17864 (2139 windows), test 3904 (482 windows)
+
+=== A. MARKET CALIBRATION: realized Up rate vs mid_up ===
+
+early train n= 6346  fit y~a+b*logit(mid): a=-0.060 [-0.158,+0.022]  b=1.073 [0.961,1.195]
+        mid bin     n mean mid up rate   diff
+      0.0-0.1    45    0.072   0.133 +0.061
+      0.1-0.2   247    0.157   0.109 -0.047
+      0.2-0.3   562    0.254   0.201 -0.053
+      0.3-0.4   996    0.352   0.344 -0.008
+      0.4-0.5  1322    0.450   0.436 -0.015
+      0.5-0.6  1268    0.547   0.538 -0.010
+      0.6-0.7   923    0.648   0.634 -0.015
+      0.7-0.8   597    0.746   0.771 +0.025
+      0.8-0.9   307    0.843   0.831 -0.013
+      0.9-1.0    65    0.928   0.969 +0.041
+
+early test  n= 1438  fit y~a+b*logit(mid): a=-0.008 [-0.195,+0.166]  b=1.047 [0.835,1.294]
+        mid bin     n mean mid up rate   diff
+      0.1-0.2    75    0.156   0.173 +0.017
+      0.2-0.3   118    0.253   0.314 +0.060
+      0.3-0.4   206    0.354   0.282 -0.072
+      0.4-0.5   259    0.448   0.448 -0.000
+      0.5-0.6   301    0.547   0.512 -0.035
+      0.6-0.7   234    0.645   0.692 +0.047
+      0.7-0.8   126    0.746   0.738 -0.007
+      0.8-0.9    73    0.847   0.890 +0.044
+      0.9-1.0    24    0.928   0.958 +0.030
+
+mid   train n= 6242  fit y~a+b*logit(mid): a=-0.119 [-0.227,-0.016]  b=1.050 [0.987,1.117]
+        mid bin     n mean mid up rate   diff
+      0.0-0.1   828    0.050   0.036 -0.014
+      0.1-0.2   691    0.151   0.123 -0.028
+      0.2-0.3   607    0.250   0.227 -0.022
+      0.3-0.4   484    0.348   0.372 +0.024
+      0.4-0.5   442    0.452   0.380 -0.072
+      0.5-0.6   477    0.548   0.512 -0.037
+      0.6-0.7   484    0.652   0.610 -0.043
+      0.7-0.8   594    0.751   0.736 -0.016
+      0.8-0.9   691    0.852   0.855 +0.003
+      0.9-1.0   942    0.951   0.956 +0.005
+
+mid   test  n= 1401  fit y~a+b*logit(mid): a=+0.025 [-0.216,+0.274]  b=1.168 [1.032,1.350]
+        mid bin     n mean mid up rate   diff
+      0.0-0.1   237    0.050   0.017 -0.033
+      0.1-0.2   110    0.153   0.136 -0.016
+      0.2-0.3   136    0.252   0.272 +0.020
+      0.3-0.4   123    0.348   0.325 -0.023
+      0.4-0.5    90    0.448   0.422 -0.026
+      0.5-0.6   102    0.555   0.549 -0.006
+      0.6-0.7   122    0.652   0.672 +0.020
+      0.7-0.8   122    0.753   0.820 +0.067
+      0.8-0.9   135    0.855   0.874 +0.019
+      0.9-1.0   224    0.955   0.973 +0.018
+
+late  train n= 5276  fit y~a+b*logit(mid): a=-0.226 [-0.383,-0.093]  b=0.960 [0.909,1.035]
+        mid bin     n mean mid up rate   diff
+      0.0-0.1  1533    0.033   0.025 -0.008
+      0.1-0.2   411    0.143   0.146 +0.003
+      0.2-0.3   320    0.248   0.250 +0.002
+      0.3-0.4   242    0.348   0.360 +0.012
+      0.4-0.5   202    0.449   0.342 -0.107
+      0.5-0.6   186    0.546   0.489 -0.057
+      0.6-0.7   249    0.651   0.550 -0.101
+      0.7-0.8   237    0.752   0.696 -0.056
+      0.8-0.9   380    0.857   0.800 -0.057
+      0.9-1.0  1514    0.968   0.958 -0.010
+
+late  test  n= 1065  fit y~a+b*logit(mid): a=+0.164 [-0.191,+0.477]  b=1.188 [1.052,1.410]
+        mid bin     n mean mid up rate   diff
+      0.0-0.1   310    0.031   0.010 -0.021
+      0.1-0.2    87    0.141   0.115 -0.026
+      0.2-0.3    50    0.243   0.380 +0.137
+      0.3-0.4    41    0.342   0.439 +0.097
+      0.4-0.5    37    0.453   0.405 -0.048
+      0.5-0.6    44    0.551   0.614 +0.062
+      0.6-0.7    43    0.647   0.628 -0.019
+      0.7-0.8    57    0.752   0.825 +0.072
+      0.8-0.9    76    0.856   0.934 +0.078
+      0.9-1.0   318    0.970   0.975 +0.005
+
+=== B. DOES THE MODEL ADD INFORMATION? (fit on train, scored on test; log loss, lower is better) ===
+
+early train M1 coefs: a=-0.057 b_mid=0.838 c_model=+0.168   train CV log loss M0 0.6147 M1 0.6145 -> trade with M1
+      test log loss: raw mid 0.6087  raw model 0.6784  M0 market 0.6089  M1 mkt+model 0.6147
+      M1 - M0 on test: +0.0059  95% CI [+0.0023, +0.0094] -> no evidence the model adds information
+
+mid   train M1 coefs: a=-0.116 b_mid=0.975 c_model=+0.050   train CV log loss M0 0.4433 M1 0.4432 -> trade with M1
+      test log loss: raw mid 0.4069  raw model 0.4843  M0 market 0.4068  M1 mkt+model 0.4083
+      M1 - M0 on test: +0.0015  95% CI [+0.0001, +0.0027] -> no evidence the model adds information
+
+late  train M1 coefs: a=-0.225 b_mid=0.946 c_model=+0.012   train CV log loss M0 0.3212 M1 0.3213 -> trade with M0
+      test log loss: raw mid 0.2596  raw model 0.4192  M0 market 0.2668  M1 mkt+model 0.2672
+      M1 - M0 on test: +0.0004  95% CI [-0.0000, +0.0009] -> no evidence the model adds information
+
+=== C. TRADING RULE (1 share at the ask, first qualifying checkpoint per window) ===
+
+[chosen]      m | train n      PnL  /trade      t |
+             0.02 |    1041   +19.99 +0.0192   1.39 |
+             0.04 |     138    +1.42 +0.0103   0.27 |
+             0.06 |      50    +5.24 +0.1048   1.93 |
+             0.08 |      21    +1.45 +0.0689   0.73 |
+   chosen m=0.02 on train -> TEST n=226 PnL -15.26 per trade -0.0675 t=-2.31 -> FAIL
+
+[M0 only]      m | train n      PnL  /trade      t |
+             0.02 |     726   +27.39 +0.0377   2.18 |
+             0.04 |       2    +1.32 +0.6591  44.37 |
+             0.06 |       0    +0.00    +nan    nan |
+             0.08 |       0    +0.00    +nan    nan |
+   chosen m=0.02 on train -> TEST n=146 PnL -9.60 per trade -0.0657 t=-1.85 -> info only
+
+-----------------------INTERPRETATION 29 Sep 2026
+Verdict: FAIL on all three questions. There is no stable market miscalibration to trade, and the
+fair-value model carries no information that the market price doesn't already have.
+
+A. The market is close to calibrated, and its biases don't persist.
+   - Early (8-14 min left): calibrated in both periods (a ~ 0, b ~ 1, CIs cover it).
+   - Late (<= 3 min left), train: Up was overpriced. a = -0.23 (CI excludes 0); Up at 0.4-0.9 won
+     5-11 points less often than priced.
+   - Late, test: the sign flipped. a = +0.16, b = 1.19; favourites won more often than priced.
+   - Recalibrating the market on train made it WORSE on test late in the window (log loss 0.2668
+     vs 0.2596 for the raw price). The train bias was noise or a regime that ended.
+
+B. The model adds nothing beyond the market price.
+   - On its own, the model is far worse than the market price in every group:
+       log loss  early 0.678 vs 0.609 | mid 0.484 vs 0.407 | late 0.419 vs 0.260
+   - Given the market price, the model's weight on train is small (c = 0.17 / 0.05 / 0.01) and
+     cross-validation can barely tell M1 from M0 (differences of 0.0001-0.0002).
+   - On test, adding the model makes predictions worse in every group; early the whole 95% CI is
+     above 0 (+0.0023 to +0.0094). The model is not just uninformative there, it hurts.
+   - This is the step 5 result from the other direction: the losses come from the model disagreeing
+     with a market that is better informed than it is.
+
+C. Nothing tradeable.
+   - Chosen rule (M1 early/mid, M0 late, m = 0.02): train +$20 on 1,041 trades (t = 1.39, in-sample),
+     TEST -$15.26 on 226 trades, t = -2.31 -> FAIL.
+   - Market-bias-only rule: train t = 2.18 in-sample, TEST -$9.60, t = -1.85. An in-sample t above 2
+     that reverses out of sample, again.
+
+What this means
+  - The Binance-momentum fair-value approach has now failed four ways: live results, backtest
+    reconciliation (step 4), filters (step 5), and as an information source next to the market
+    (this analysis). I don't think more tuning of it is worth doing.
+  - Stop paper-trading this strategy as a candidate. Keep the recorder running.
+  - If research continues, it needs an information source the market may be slow to price, not
+    a better transform of Binance spot. The most concrete candidate is the settlement basis: windows
+    settle on Chainlink, not Binance, and the two disagreed on ~6% of window outcomes. Chainlink
+    prices have been recorded since Sep 29 01:23 UTC. After a few weeks of recording, test whether
+    the Chainlink-vs-Binance gap near the close predicts outcomes beyond the market price, using the
+    same train/test method as here.
+
+Caveats
+  - Top-of-book 1-share fills and snapshot-only books; a finer book would not rescue B, which does
+    not depend on execution.
+  - B uses mid prices; it measures information content, not tradeability.
