@@ -1,0 +1,181 @@
+-----------------------21 Oct 2026
+Chainlink settlement-basis test. Follows 20260928/20260929_market_calibration.txt
+("the most concrete candidate is the settlement basis") and the Sep 29 todo entry
+(first look at ~Oct 20).
+
+PRE-REGISTRATION (written before any Chainlink-vs-outcome number was computed)
+
+Question
+  15m BTC markets settle on Chainlink's 60s BTC/USD TWAP, not Binance spot. Near the
+  close, does the Chainlink price's distance from its own window-open value predict the
+  official outcome better than the market's own price already does?
+
+Data
+  var/poly15m.db, server copy of Oct 20 2026. Chainlink ticks (source chainlink_twap60,
+  1 per second) exist from Sep 29 01:23 to Oct 15 15:02 UTC.
+  Windows: opening >= Sep 29 01:30 UTC and closing <= Oct 15 15:00 UTC, official
+  resolution 'up'/'down'.
+  train = windows opening Sep 29 01:30 - Oct 8 23:59 UTC
+  test  = windows opening Oct 9 00:00 UTC - Oct 15 (close <= 15:00)
+  Oct 1-3 have no order books (CLOB feed hung), so those windows drop out of train.
+
+Price definitions (CL = Chainlink TWAP, BN = Binance trade price)
+  X(t) = latest tick of X at or before t.
+  CL_open = CL(window_open_ts), CL_close = CL(window_close_ts); same for BN.
+  Chainlink proxy outcome = up if CL_close >= CL_open.
+
+Step 0: data validity gate (train windows only)
+  Agreement of the Chainlink proxy with the official outcome must be >= 97%.
+  Binance proxy agreement is reported alongside. If the gate fails, the timestamps or
+  the feed don't match what settlement uses: stop and investigate, don't run Step 1-2.
+  A tick is only used if it is no more than 5 s older than the time it stands for.
+
+Checkpoints and samples
+  Seconds before close: 180, 120, 90, 60, 30, 15.
+  Groups: "mid" = {180, 120, 90}, "late" = {60, 30, 15}.
+  A checkpoint is kept if CL and BN ticks are <= 5 s old and both tokens have a book
+  snapshot <= 10 s old with a best bid and best ask.
+  Market price: mid_up = (best_bid_up + best_ask_up) / 2.
+
+Features
+  sigma  = std dev of 1 s Binance price changes over the 300 s before the checkpoint
+           (BN sampled every second by last value), in $ per sqrt(s), floored at 1.0.
+           The same sigma is used for both feeds so the only difference between them is
+           the price itself.
+  z_cl   = (CL(t) - CL_open) / (sigma * sqrt(t_rem))
+  z_bn   = (BN(t) - BN_open) / (sigma * sqrt(t_rem))
+  Both clipped to [-6, 6].
+
+Step 1: information test (same method as Sep 29)
+  Logistic models fitted on train, separately per group, scored on test by log loss:
+    M0  y ~ logit(mid_up)
+    M1  y ~ logit(mid_up) + z_cl            <- the hypothesis
+    M2  y ~ logit(mid_up) + z_bn            (reference only: is it Chainlink specifically,
+                                             or any spot distance-to-strike?)
+  Uncertainty: window-level bootstrap, 1,000 resamples, seed 20261021.
+  Two groups are tested, so each uses a 97.5% CI (Bonferroni).
+  INFORMATION PASS for a group: on test, mean(M1 - M0 log loss) < 0 with the whole
+  97.5% CI below 0, AND the z_cl coefficient fitted on train is positive.
+
+Step 2: trading rule (only meaningful if Step 1 passes; run and reported either way)
+  For each group that passed Step 1, use M1's train fit to get q = P(up).
+  At each kept checkpoint in that group, in time order, buy 1 share of the side with the
+  larger q - ask - fee, if that exceeds margin m. At most one trade per window.
+  Fee = 0.07 * p * (1 - p) per share (taker, src/poly15m/sim/fees.py).
+  Fills at the best ask, book no older than 5 s. Graded by official settlement.
+  m is chosen on train from {0.02, 0.04, 0.06, 0.08} by highest train PnL.
+  TRADE PASS: test PnL > 0 and t >= 2. PROMISING: test PnL > 0 and t >= 1. Else FAIL.
+  M0 with the same rule is reported for reference only.
+
+Decision (fixed now)
+  Info PASS and trade PASS  -> build a Chainlink-anchored model and pre-register a
+                               forward paper run with a stop rule.
+  Info PASS, trade not PASS -> the basis carries information that taker fees eat; the
+                               only route left is maker orders, which paper can't test
+                               (see Oct 21 notes). Not a reason to keep paper trading.
+  Info FAIL                 -> stop strategy research on these markets.
+  Gate FAIL                 -> fix the data first; no conclusion either way.
+
+Known limits, stated up front
+  - Not fully blind. Before writing this I had seen: Binance disagreed with settlement in
+    103 of the 1,590 windows (6.5%), and traded windows where the feeds disagreed lost
+    $228 in the Sep 28 - Oct 15 paper run. Both use outcomes. I have not computed any
+    Chainlink-vs-outcome number, and the features, checkpoints, split and pass bars above
+    were fixed before running anything.
+  - Small sample: about 600 test windows, and the basis only matters when BTC is near
+    the open late in the window. Only a large effect will pass. A FAIL here means "no
+    evidence of a large effect", not proof of none.
+  - Book data: the price_change fix is live, so books are continuous, but only the
+    best bid/ask is used here.
+  - The market's participants can watch Chainlink too; a FAIL is the expected outcome if
+    they do.
+
+Script: scripts/chainlink_basis.py (build, then analyze; results are appended below).
+
+-----------------------RESULTS 21 Oct 2026 13:57
+=== STEP 0. DATA VALIDITY GATE (train windows only) ===
+Chainlink proxy vs official: 951/951 = 100.00%  (0 windows missing a tick)
+Binance   proxy vs official: 893/951 = 93.90%  (0 windows missing a tick)
+gate (>= 97%): PASS
+
+rows: train 1740 (578 windows), test 1872 (596 windows)
+
+=== STEP 1. INFORMATION (fit on train, log loss on test, lower is better) ===
+
+mid   train n=1388  test n=1478 (595 windows)
+      train coefs  M1: a=-0.155 b_mid=1.086 c_zcl=-0.038   M2: a=-0.162 b_mid=1.174 c_zbn=-0.145
+      test log loss: M0 0.2866  M1 0.2866  M2 0.2880  (raw mid 0.2878)
+      M1 - M0: -0.0000  97.5% CI [-0.0007, +0.0007]  -> INFORMATION FAIL
+      M2 - M0: +0.0014  97.5% CI [-0.0017, +0.0046]  (reference)
+
+late  train n=352  test n=394 (292 windows)
+      train coefs  M1: a=+0.113 b_mid=1.055 c_zcl=+0.036   M2: a=+0.132 b_mid=1.177 c_zbn=-0.209
+      test log loss: M0 0.2202  M1 0.2204  M2 0.2233  (raw mid 0.2194)
+      M1 - M0: +0.0002  97.5% CI [-0.0010, +0.0013]  -> INFORMATION FAIL
+      M2 - M0: +0.0031  97.5% CI [-0.0059, +0.0117]  (reference)
+
+=== STEP 2. TRADING RULE (1 share at the ask, first qualifying checkpoint per window) ===
+
+[M1 mid]      m | train n      PnL  /trade      t |
+             0.02 |      82    -3.44 -0.0420  -0.81 |
+             0.04 |       1    +0.43 +0.4327    nan |
+             0.06 |       0    +0.00    +nan    nan |
+             0.08 |       0    +0.00    +nan    nan |
+   chosen m=0.04 on train -> TEST n=0 PnL +0.00 per trade +nan t=nan -> info only (group failed Step 1)
+
+[M1 late]      m | train n      PnL  /trade      t |
+             0.02 |       5    +1.33 +0.2665   5.89 |
+             0.04 |       0    +0.00    +nan    nan |
+             0.06 |       0    +0.00    +nan    nan |
+             0.08 |       0    +0.00    +nan    nan |
+   chosen m=0.02 on train -> TEST n=1 PnL -0.71 per trade -0.7147 t=nan -> info only (group failed Step 1)
+
+[M0 mid]      m | train n      PnL  /trade      t |
+             0.02 |      62    -2.68 -0.0433  -0.72 |
+             0.04 |       0    +0.00    +nan    nan |
+             0.06 |       0    +0.00    +nan    nan |
+             0.08 |       0    +0.00    +nan    nan |
+   chosen m=0.04 on train -> TEST n=0 PnL +0.00 per trade +nan t=nan -> reference
+
+[M0 late]      m | train n      PnL  /trade      t |
+             0.02 |       0    +0.00    +nan    nan |
+             0.04 |       0    +0.00    +nan    nan |
+             0.06 |       0    +0.00    +nan    nan |
+             0.08 |       0    +0.00    +nan    nan |
+   chosen m=0.02 on train -> TEST n=0 PnL +0.00 per trade +nan t=nan -> reference
+
+-----------------------INTERPRETATION 21 Oct 2026
+Verdict under the pre-registered rule: Gate PASS, INFORMATION FAIL in both groups -> stop strategy
+research on these markets.
+
+Step 0. The recorded feed is the settlement price.
+  - Chainlink proxy matched the official outcome in 951/951 train windows (100%); Binance in 893/951
+    (93.9%). Timestamps and feed are right, and settlement really is "Chainlink TWAP at close >= at open".
+
+Step 1. The market already prices Chainlink.
+  - Adding z_cl to the market price changes test log loss by -0.0000 (mid) and +0.0002 (late); both
+    97.5% CIs straddle 0 and are narrow (about +/-0.001). The fitted z_cl weights are ~0
+    (-0.04, +0.04). This isn't a noisy null: the effect is pinned close to zero.
+  - The market price on its own is well calibrated here (b_mid ~1.05-1.09; raw mid log loss is within
+    0.001 of the fitted M0).
+  - Binance distance-to-strike (M2) is no better and gets a negative weight, the same result as Sep 29.
+
+Step 2. Nothing to trade.
+  - At a 2c margin over fees, M1 found 82 trades in 578 train windows (-$3.44) and 1 test trade. With
+    taker fees of ~1.75c per share at 50c, the market is never far enough from M1's probability to
+    pay for crossing the spread.
+
+Clarification (no deviation from the plan): 6 checkpoints x 1,585 windows = 9,510; 3,612 were kept.
+  Most skips are one-sided books, where the winning token is bid at 0.99+ with no asks left (the
+  market has already decided the window), and the Oct 1-3 windows with no book data. Both are
+  dropped by the "best bid and best ask on both tokens" rule written before the run.
+
+What this means
+  - Every candidate has now failed: the Binance-momentum model (five ways, Sep 23 - Oct 15) and the
+    settlement basis (today). The Binance-vs-settlement disagreements that cost the paper bot money
+    were losses to a market that was already watching Chainlink, not an inefficiency left for us.
+  - Per the decision rule: stop strategy research on these markets. Don't go live.
+  - Optional, as a separate project only: maker (limit-order) strategies avoid the taker fee and earn
+    rebates, but paper trading can't simulate queue position, so they could only be tested with a
+    small amount of real money. Nothing in this test suggests an informational edge to carry there.
+  - The recorder can be stopped, or kept only if that maker project is planned.
