@@ -67,7 +67,15 @@ tmux new -d -s poly15m '.venv/bin/poly15m-paper-trade'
 
 Reattach anytime with `tmux attach -t poly15m` (detach again with `Ctrl+B` then `D`). Stop it with `tmux kill-session -t poly15m`, or reattach and hit `Ctrl+C`.
 
-(screen/a systemd unit also work if you want it to survive a terminal close/reboot). Just don't delete `var/poly15m.db` between runs — that's the whole point, it's accumulating your track record.
+For an unattended run, launch it through the restart loop instead:
+
+```
+tmux new -d -s poly15m 'sh scripts/run_paper_forever.sh'
+```
+
+A stale-feed watchdog exits the bot with code 3 when Binance, the CLOB book feed, or the Chainlink feed (when credentials are set) has sent nothing for `POLY15M_FEED_WATCHDOG_STALE_SECONDS` (default 120). The loop restarts it after 30s; a Ctrl+C exit (code 0) ends the loop. Without the loop, a watchdog exit just stops the bot. Look for `feed_watchdog_stale` in the log.
+
+(screen/a systemd unit with `Restart=on-failure` also work if you want it to survive a terminal close/reboot). Just don't delete `var/poly15m.db` between runs — that's the whole point, it's accumulating your track record.
 
 ## 5. Check the results
 

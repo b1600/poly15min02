@@ -35,6 +35,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import signal
+import sys
 import time
 
 from .config import Settings, settings
@@ -51,6 +52,7 @@ from .positions.manager import PositionManager
 from .risk.limits import RiskGate
 from .signals.features import FeatureEngine
 from .sim.paper import PaperExecutor
+from .watchdog import EXIT_CODE_STALE_FEED, feed_watchdog_loop
 
 logger = logging.getLogger(__name__)
 
@@ -370,7 +372,9 @@ async def clock_loop(tracker: WindowTracker, trader: PaperTrader) -> None:
         await asyncio.sleep(1.0)
 
 
-async def run() -> None:
+async def run() -> int:
+    """Runs until SIGINT/SIGTERM (returns 0) or the feed watchdog trips
+    (returns EXIT_CODE_STALE_FEED so a supervisor restarts the process)."""
     settings.ensure_dirs()
     setup_logging(
         settings.log_level,
@@ -412,6 +416,17 @@ async def run() -> None:
     binance_feed.set_on_tick(trader.on_binance_tick)
 
     stop = asyncio.Event()
+    exit_code = 0
+
+    def on_stale(_stale: dict[str, float]) -> None:
+        nonlocal exit_code
+        exit_code = EXIT_CODE_STALE_FEED
+        stop.set()
+
+    watched = {"binance": binance_feed, "clob": clob_feed}
+    if settlement_feed.has_credentials:
+        watched["chainlink"] = settlement_feed
+
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
         try:
@@ -428,23 +443,32 @@ async def run() -> None:
         asyncio.create_task(trader.status_loop(), name="status_loop"),
         asyncio.create_task(resolution_poller.run(), name="resolution_poller"),
         asyncio.create_task(db.run_flush_loop(), name="db_flush"),
+        asyncio.create_task(
+            feed_watchdog_loop(watched, settings.feed_watchdog_stale_seconds, on_stale), name="feed_watchdog"
+        ),
     ]
 
     await stop.wait()
-    logger.info("shutting_down")
+    logger.info("shutting_down", extra={"exit_code": exit_code})
     for task in tasks:
         task.cancel()
-    await asyncio.gather(*tasks, return_exceptions=True)
+    try:
+        # a task stuck in a hung socket must not keep a stale process alive
+        await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=15.0)
+    except asyncio.TimeoutError:
+        logger.warning("shutdown_tasks_timed_out")
     db.close()
+    return exit_code
 
 
 def main() -> None:
     try:
-        asyncio.run(run())
+        exit_code = asyncio.run(run())
     except Exception:
         # otherwise the traceback reaches only stderr, not the log file
         logger.exception("crashed")
         raise
+    sys.exit(exit_code)
 
 
 if __name__ == "__main__":

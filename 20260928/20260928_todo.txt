@@ -136,8 +136,62 @@ Write down the sample size, a pass bar and a stop rule before it starts (for exa
 
 Steps 1 and 2 need you: the keys are yours, and the note is your decision. I can start on step 3 or step 4 now. Which one?
 
------------------------
------------------------
+-----------------------29 Sep 2026 17:20
+
+Prompt: how long do i need to collect data before refit model again?
+
+It depends on how often the signal shows up, not only on calendar days. Here's the arithmetic for the one candidate left, the Chainlink settlement basis. It also covers a refit of the current model on the fixed order-book data.
+
+What the numbers depend on
+- Windows: about 91 usable windows a day (the Sep 23–28 rate, after restarts and skipped windows).
+- How often the basis matters: Binance and Chainlink disagreed on the window's result about 6% of the time (19 of 321 windows in the shakeout), so about 5–6 windows a day.
+- Noise: one share of a binary bet has a per-trade standard deviation of about $0.45–0.50.
+- Trades needed for t = 2 in the test period is roughly (2 × 0.48 / edge)².
+
+┌───────────────────────────┬────────────────────┬─────────────────────────────────────────┬─────────────────────────────────────┐
+│ Edge per trade after fees │ Test trades needed │ Days if it only fires on ~6 windows/day │ Days if it fires on ~30 windows/day │
+├───────────────────────────┼────────────────────┼─────────────────────────────────────────┼─────────────────────────────────────┤
+│ 10¢                       │ ~90                │ ~16                                     │ ~3                                  │
+├───────────────────────────┼────────────────────┼─────────────────────────────────────────┼─────────────────────────────────────┤
+│ 5¢                        │ ~370               │ ~65                                     │ ~12                                 │
+├───────────────────────────┼────────────────────┼─────────────────────────────────────────┼─────────────────────────────────────┤
+│ 3¢                        │ ~1,000             │ ~180                                    │ ~34                                 │
+└───────────────────────────┴────────────────────┴─────────────────────────────────────────┴─────────────────────────────────────┘
+
+That covers the test period only. The training period needs about as much again, so double these numbers.
+
+Recommendation
+- First look at about 3 weeks (around Oct 20; Chainlink recording started Sep 29 01:23 UTC). 
+About 2 weeks for training and 1 week for testing, roughly 1,900 windows. 
+That's enough to check whether the basis adds information beyond the market price at all, 
+using the same log-loss test as today. It isn't enough to prove a tradeable edge unless the edge is large (10¢ or more).
+
+- Decision at about 6–8 weeks (mid-to-late November), 
+if the signal only matters in the ~6% of windows where the feeds disagree and the edge is around 5¢.
+
+- Only count data recorded after the price_change fix is deployed. 
+Earlier order-book data is snapshot-only, which is fine for checking information but too coarse 
+for judging tradeability. Every day before the server runs the fix pushes the start date back.
+
+- Refitting the current model on the fixed data won't help. 
+Today's result, that the model adds nothing beyond the market price, is based on mid prices, 
+and better order-book data doesn't change it. It isn't worth waiting for.
+
+To avoid checking the numbers early and moving the target, I can write the Oct 20 check-in into a dated plan file now: the question, the test, and the pass bar.
+
+----------------------- 21 Oct 2026
+
+To deploy (this includes the top-10 depth change from before)
+git pull
+tmux kill-session -t poly15m   # or stop the current nohup process
+tmux new -d -s poly15m 'sh scripts/run_paper_forever.sh'
+Without the restart loop, a watchdog exit just stops the bot. 
+Restarts are recorded in var/paper_trade.stderr. 
+If you see repeated feed_watchdog_stale events, 
+the server's network is probably the problem, not the bot. 
+On Oct 15 the market finder's web requests were timing out too.
+
+
 -----------------------
 -----------------------
 -----------------------

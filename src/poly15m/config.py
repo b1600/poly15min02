@@ -105,6 +105,11 @@ class Settings(BaseSettings):
     # delta would be ~100 GB/day. At 0.5 s, plus the exchange's own "book"
     # snapshots (always written), measured ~6.4 rows/s, ~0.8 GB/day.
     clob_book_persist_interval_seconds: float = 0.5
+    # Levels per side written to book_snapshots. The live book keeps full
+    # depth; only the stored copy is cut. Full ladders (~98 levels) were ~90%
+    # of DB growth, while fills walk 1-2 levels and imbalance reads
+    # book_imbalance_depth (10). Top 10 stores ~16% of the JSON.
+    clob_book_persist_depth: int = 10
     fair_value_log_interval_seconds: float = 1.0
     divergence_alert_threshold: float = 0.05
 
@@ -227,6 +232,10 @@ class Settings(BaseSettings):
     max_inventory_imbalance: float = 25.0
     daily_loss_limit: float = 100.0
     feed_staleness_seconds: float = 5.0
+    # Process-level watchdog (watchdog.py): exit for a supervisor restart
+    # when any expected feed (Binance, CLOB, Chainlink if enabled) has been
+    # silent this long. Each normally sends several messages a second.
+    feed_watchdog_stale_seconds: float = 120.0
 
     # --- kill-switch behaviour -------------------------------------------
     # Re-arm the kill switch at the UTC day boundary instead of latching

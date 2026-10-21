@@ -317,6 +317,8 @@ class ClobFeed:
         if condition_id is None:
             return
         bids, asks = self.books[asset_id].as_sorted()
+        depth = self.settings.clob_book_persist_depth
+        bids, asks = bids[:depth], asks[:depth]
         self.db.insert_book_snapshot(condition_id, asset_id, bids, asks, event_ts)
         self._last_persist_recv[asset_id] = now
         self._unpersisted.pop(asset_id, None)

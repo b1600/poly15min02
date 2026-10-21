@@ -141,3 +141,28 @@ def test_price_change_snapshots_are_throttled_but_keep_the_last_state(tmp_path, 
     db.flush()
     rows = db._conn.execute("select best_bid, event_ts from book_snapshots where token_id='up1' order by id").fetchall()
     assert rows == [(0.40, 1_790_000_000.0), (0.415, 1_790_000_000.102)]
+
+
+def test_book_snapshots_store_only_top_levels(tmp_path):
+    db = Database(tmp_path / "t.db")
+    feed = ClobFeed(Settings(clob_book_persist_depth=3), db)
+    feed.subscribe("0xcond", ["up1", "down1"])
+    book = _book("up1", "0.40", "0.42")
+    book["bids"] = [{"price": f"{0.40 - i / 100:.2f}", "size": "10"} for i in range(8)]
+    book["asks"] = [{"price": f"{0.42 + i / 100:.2f}", "size": "10"} for i in range(8)]
+    feed._handle_message(json.dumps([book]))
+    db.flush()
+
+    best_bid, best_ask, bids_json, asks_json = db._conn.execute(
+        "select best_bid, best_ask, bids_json, asks_json from book_snapshots where token_id='up1'"
+    ).fetchone()
+    assert (best_bid, best_ask) == (0.40, 0.42)
+    assert json.loads(bids_json) == [[0.40, 10.0], [0.39, 10.0], [0.38, 10.0]]
+    assert json.loads(asks_json) == [[0.42, 10.0], [0.43, 10.0], [0.44, 10.0]]
+    # the live book keeps full depth; only the stored copy is cut
+    assert len(feed.books["up1"].bids) == 8
+
+
+def test_persisted_depth_covers_book_imbalance_depth():
+    s = Settings()
+    assert s.clob_book_persist_depth >= s.book_imbalance_depth
